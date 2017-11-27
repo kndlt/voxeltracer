@@ -27,40 +27,62 @@ var shader = new GL.Shader(`
     gl_Position = gl_Vertex;
   }
 `, `
-  vec3 roomCubeMin = vec3(-1.0, -1.0, -1.0);
-  vec3 roomCubeMax = vec3(1.0, 1.0, 1.0);
+  ${intersectCubeSource}
   const float INFINITY = 1.0e9;
   uniform vec3 eye;
   varying vec3 initialRay;
-  ${intersectCubeSource}
+  vec3 containerMin = vec3(-1, 0, -1);
+  vec3 containerMax = vec3(1, 2, 1);
   void main() {
     vec3 origin = eye, ray = initialRay, color = vec3(0.0), mask = vec3(1.0);
-    vec2 tRoom = intersectCube(origin, ray, roomCubeMin, roomCubeMax);
 
-    for (int bounce = 0; bounce < 2; bounce++) {
-      /* Find the closest intersection with the scene */
-      float planeT = -origin.y / ray.y;
-      vec3 hit = origin + ray * planeT;
-      if (planeT < 0.0 || abs(hit.x) > 40.0 || abs(hit.z) > 40.0) planeT = INFINITY;
-      float t = planeT;
-      if(tRoom.x < tRoom.y && tRoom.x < t) t = tRoom.x;
+    // Level 1 Solid single white voxel.
+    vec3 boundMin = containerMin, boundMax = containerMax;
+    vec3 tMin = (boundMin - origin) / ray;
+    vec3 tMax = (boundMax - origin) / ray;
+    vec3 t1 = min(tMin, tMax);
+    vec3 t2 = max(tMin, tMax);
+    float tNear = max(max(t1.x, t1.y), t1.z);
+    float tFar = min(min(t2.x, t2.y), t2.z);
 
-      /* The background is white */
-      if (t == INFINITY) {
-        color += mask;
-        break;
-      }
-
-      /* Calculate the intersection */
-      hit = origin + ray * t;
-      if (t == planeT) {
-        /* Look up the checkerboard color */
-        vec3 c = fract(hit * 0.5) - 0.5;
-        float checkerboard = c.x * c.z > 0.0 ? 1.0 : 0.0;
-        color += vec3(0.7, 0.7, 0.7) * mask;
-        break;
-      }
+    // Did intersect.
+    if (tNear < tFar) {
+      color += mask;
     }
+
+    // // If the ray.x > 0 && cubeMin.x > origin.x => then test bound and quarter.
+    // //    Look at which quarter it hits and test if the quarter is empty or not.
+    // //    If the quarter is empty, that axis plane
+    // vec2 tRoom = intersectCube(origin, ray, roomCubeMin, roomCubeMax);
+    //
+    // for (int bounce = 0; bounce < 2; bounce++) {
+    //   /* Find the closest intersection with the scene */
+    //   float planeT = -origin.y / ray.y;
+    //   vec3 hit = origin + ray * planeT;
+    //   if (planeT < 0.0 || abs(hit.x) > 40.0 || abs(hit.z) > 40.0) planeT = INFINITY;
+    //   float t = planeT;
+    //   if (tRoom.x < tRoom.y && tRoom.x < t) t = tRoom.x;
+    //   hit = origin + ray * t;
+    //   // if hit position is within left side, then query left.
+    //   // if hit position is within right side, then query right.
+    //
+    //
+    //   /* The background is white */
+    //   if (t == INFINITY) {
+    //     color += mask;
+    //     break;
+    //   }
+    //
+    //   /* Calculate the intersection */
+    //   hit = origin + ray * t;
+    //   if (t == planeT) {
+    //     /* Look up the checkerboard color */
+    //     vec3 c = fract(hit * 0.5) - 0.5;
+    //     float checkerboard = c.x * c.z > 0.0 ? 1.0 : 0.0;
+    //     color += vec3(0.7, 0.7, 0.7) * mask;
+    //     break;
+    //   }
+    // }
 
     gl_FragColor = vec4(color, 1.0);
   }
@@ -96,21 +118,6 @@ gl.ondraw = function() {
 
   // Trace the rays
   shader.draw(mesh);
-
-  // Draw debug output to show that the raytraced scene lines up correctly with
-  // the rasterized scene
-  gl.color(0, 0, 0, 0.5);
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.begin(gl.LINES);
-  for (var s = 4, i = -s; i <= s; i++) {
-    gl.vertex(-s, 0, i);
-    gl.vertex(s, 0, i);
-    gl.vertex(i, 0, -s);
-    gl.vertex(i, 0, s);
-  }
-  gl.end();
-  gl.disable(gl.BLEND);
 };
 
 gl.fullscreen();
