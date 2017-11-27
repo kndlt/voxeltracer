@@ -58,10 +58,11 @@ var shader = new GL.Shader(`
   varying vec3 initialRay;
   vec3 containerMin = vec3(-1, 0, -1);
   vec3 containerMax = vec3(1, 2, 1);
+  vec3 toLight = vec3(-0.1, 1, 0.5);
   void main() {
     vec3 origin = eye, ray = initialRay, color = vec3(0.0), mask = vec3(1.0);
 
-    // Level 2 Solid single normal colored voxel.
+    // Level 3 shaded cube
     vec3 boundMin = containerMin, boundMax = containerMax;
     vec3 tMin = (boundMin - origin) / ray;
     vec3 tMax = (boundMax - origin) / ray;
@@ -76,7 +77,9 @@ var shader = new GL.Shader(`
       float t = tNear;
       vec3 hit = origin + ray * t;
       vec3 normal = normalForCube(hit, boundMin, boundMax);
-      color = normal;
+
+      float diffuse = max(0.0, dot(normalize(toLight), normal));
+      color = vec3(diffuse);
     }
 
     // // If the ray.x > 0 && cubeMin.x > origin.x => then test bound and quarter.
