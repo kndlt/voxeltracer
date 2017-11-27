@@ -3,6 +3,11 @@
 
 // compute the near and far intersections of the cube (stored in the x and y components) using the slab method
 // no intersection means vec.x > vec.y (really tNear > tFar)
+var epsilon = '0.0001';
+
+/**
+ * Cube
+ */
 var intersectCubeSource =`
 vec2 intersectCube(vec3 origin, vec3 ray, vec3 cubeMin, vec3 cubeMax) {
   vec3 tMin = (cubeMin - origin) / ray;
@@ -14,6 +19,22 @@ vec2 intersectCube(vec3 origin, vec3 ray, vec3 cubeMin, vec3 cubeMax) {
   return vec2(tNear, tFar);
 }
 `;
+
+/**
+ * Cube normal
+ */
+var normalForCubeSource =`
+vec3 normalForCube(vec3 hit, vec3 cubeMin, vec3 cubeMax)
+{
+  if (hit.x < cubeMin.x + ${epsilon}) return vec3(-1.0, 0.0, 0.0);
+  else if (hit.x > cubeMax.x - ${epsilon}) return vec3(1.0, 0.0, 0.0);
+  else if (hit.y < cubeMin.y + ${epsilon}) return vec3(0.0, -1.0, 0.0);
+  else if (hit.y > cubeMax.y - ${epsilon}) return vec3(0.0, 1.0, 0.0);
+  else if (hit.z < cubeMin.z + ${epsilon}) return vec3(0.0, 0.0, -1.0);
+  else return vec3(0.0, 0.0, 1.0);
+}
+`;
+
 var angleX = 30;
 var angleY = 10;
 var gl = GL.create();
@@ -31,6 +52,7 @@ var shader = new GL.Shader(`
   }
 `, `
   ${intersectCubeSource}
+  ${normalForCubeSource}
   const float INFINITY = 1.0e9;
   uniform vec3 eye;
   varying vec3 initialRay;
@@ -39,10 +61,11 @@ var shader = new GL.Shader(`
   void main() {
     vec3 origin = eye, ray = initialRay, color = vec3(0.0), mask = vec3(1.0);
 
-    // Level 1 Solid single white voxel.
+    // Level 2 Solid single normal colored voxel.
     vec3 boundMin = containerMin, boundMax = containerMax;
     vec3 tMin = (boundMin - origin) / ray;
     vec3 tMax = (boundMax - origin) / ray;
+    vec3 dt = tMax - tMin;
     vec3 t1 = min(tMin, tMax);
     vec3 t2 = max(tMin, tMax);
     float tNear = max(max(t1.x, t1.y), t1.z);
@@ -50,7 +73,10 @@ var shader = new GL.Shader(`
 
     // Did intersect.
     if (tNear < tFar) {
-      color += mask;
+      float t = tNear;
+      vec3 hit = origin + ray * t;
+      vec3 normal = normalForCube(hit, boundMin, boundMax);
+      color = normal;
     }
 
     // // If the ray.x > 0 && cubeMin.x > origin.x => then test bound and quarter.
