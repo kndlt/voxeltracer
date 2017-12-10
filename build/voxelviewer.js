@@ -22,10 +22,12 @@ function main() {
     }
     return data;
   })();
-  var texture = new GL.Texture(2, 2, { depth: 2, texture_type: GL.TEXTURE_3D, format: gl.RGBA, magFilter: gl.NEAREST, pixel_data: voxelData } );
 
-  var mesh = GL.Mesh.plane();
-  var shader = new GL.Shader(`#version 300 es
+  var texture = new GL.Texture(2, 2, { depth: 2, texture_type: GL.TEXTURE_3D, format: gl.RGBA, magFilter: gl.NEAREST, pixel_data: voxelData } );
+  var planeMesh = GL.Mesh.plane();
+  var cubeMesh = GL.Mesh.cube({ size: 4, wireframe: true });
+  var flatShader = GL.Shader.getFlatShader();
+  var voxelShader = new GL.Shader(`#version 300 es
     precision highp float;
     uniform vec3 ray00;
     uniform vec3 ray10;
@@ -58,20 +60,20 @@ function main() {
     out vec4 outColor;
     void main() {
 
-      // TESTING RAY DIRECTIONS
-      outColor = vec4(initialRay, 1.0);
+      // // For testing ray directions
+      // outColor = vec4(initialRay * 0.5 + 0.5, 1.0);
 
-      // vec3 origin = eye; // @TODO Does it get passed?
-      // vec3 ray = initialRay;
-      // vec4 color = vec4(0.0);
-      // ivec3 offset = 1 - ivec3(step(0.0, ray));
-      // ivec3 slab = offset * (size -1);
-      //
-      // for (
-      //   int i = 0; i < ITERATION_LIMIT; ++i
-      // ) {
-      //
-      //   // color = vec4(vec3(slab) / 4.0, 1.0);
+      vec3 origin = eye; // @TODO Does it get passed?
+      vec3 ray = initialRay;
+      vec4 color = vec4(0.0);
+      ivec3 offset = 1 - ivec3(step(0.0, ray));
+      ivec3 slab = offset * (size -1);
+
+
+
+      outColor = vec4(0.5);
+
+      // for (int i = 0; i < ITERATION_LIMIT; ++i) {
       //
       //   // Break out of the loop if end is reached.
       //   if (all(greaterThanEqual(slab, izero)) && all(lessThan(slab, size))) {
@@ -205,6 +207,8 @@ function main() {
   	gl.clearColor(0.1,0.1,0.1,1);
   	gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
 
+
+
     // Set the camera position
     mat4.perspective(persp, 45 * DEG2RAD, gl.canvas.width / gl.canvas.height, 0.1, 1000);
     mat4.lookAt(view, [0,20,20],[0,0,0], [0,1,0]);
@@ -213,11 +217,17 @@ function main() {
     mat4.multiply(temp, view, model);
   	mat4.multiply(mvp, persp, temp);
 
+    // Bounding box
+		flatShader.uniforms({
+			u_color: [1,1,1,1],
+			u_mvp: mvp
+		}).draw(cubeMesh, gl.LINES, "wireframe" );
+
     // Get corner rays
     var w = gl.canvas.width;
     var h = gl.canvas.height;
     var tracer = new GL.Raytracer(mvp);
-    shader.uniforms({
+    voxelShader.uniforms({
       eye: tracer.eye,
 			u_texture: texture.bind(0),
       ray00: tracer.getRayForPixel(0, h),
@@ -226,8 +236,8 @@ function main() {
       ray11: tracer.getRayForPixel(w, 0),
     });
 
-    // Trace the rays
-    shader.draw(mesh);
+    // // Trace the rays
+    //voxelShader.draw(planeMesh);
   };
 
   // Attach canvas
