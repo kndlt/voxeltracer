@@ -43,7 +43,7 @@ function main() {
     uniform sampler3D u_texture;
     uniform vec3 eye;
     const float INFINITY = 1.0e9;
-    const int ITERATION_LIMIT = 3 * 128;
+    const int ITERATION_LIMIT = 3 * 16; // @TODO Softcode this
     const ivec3 izero = ivec3(0);
     const ivec3 size = ivec3(2, 2, 2);   // @TODO Softcode this
     const ivec3 pos = ivec3(-1, 0, -1);  // @TODO Softcode this
@@ -53,7 +53,7 @@ function main() {
     void main() {
 
       // // For testing ray directions
-      outColor = vec4(initialRay * 0.5 + 0.5, 1.0); return;
+      // outColor = vec4(initialRay * 0.5 + 0.5, 1.0); return;
 
       vec3 origin = eye; // @TODO Does it get passed?
       vec3 ray = initialRay;
@@ -61,65 +61,64 @@ function main() {
       ivec3 offset = 1 - ivec3(step(0.0, ray));
       ivec3 slab = offset * (size -1);
 
-      // outColor = vec4(0.5,0.5,0.5, 0.0);
+      // outColor = vec4(vec3(slab), 0.0);
 
-      // for (int i = 0; i < ITERATION_LIMIT; ++i) {
-      //
-      //   // Break out of the loop if end is reached.
-      //   if (all(greaterThanEqual(slab, izero)) && all(lessThan(slab, size))) {
-      //       // color = vec4(vec3(1.0 - float(i) / float(ITERATION_LIMIT)), 1.0);
-      //       break;
-      //   }
-      //
-      //   ivec3 normal, intersection;
-      //   vec3 ts = (vec3(pos + slab + offset) - origin) / ray;
-      //   float minT = min(ts.x, min(ts.y, ts.z));
-      //
-      //   // Compute normal and intersection
-      //   if (ts.x == minT) {
-      //     normal = ivec3(offset.x * 2 - 1);
-      //     intersection = ivec3(
-      //         slab.x,
-      //         int(origin.y + ray.y * minT - float(pos.y)),
-      //         int(origin.z + ray.z * minT - float(pos.z))
-      //     );
-      //     /* Test */ color = vec4(1.0, 0.0, 0.0, 1.0); break;
-      //   }
-      //   else if (ts.y == minT) {
-      //     normal = ivec3(offset.y * 2 - 1);
-      //     intersection = ivec3(
-      //         int(origin.x + ray.x * minT - float(pos.x)),
-      //         slab.y,
-      //         int(origin.z + ray.z * minT - float(pos.z))
-      //     );
-      //     /* Test */ color = vec4(0.0, 1.0, 0.0, 1.0); break;
-      //   }
-      //   else if (ts.y == minT) {
-      //     normal = ivec3(offset.z * 2 - 1);
-      //     intersection = ivec3(
-      //         int(origin.x + ray.x * minT - float(pos.x)),
-      //         int(origin.y + ray.y * minT - float(pos.y)),
-      //         slab.z
-      //     );
-      //     /* Test */ color = vec4(0.0, 0.0, 1.0, 1.0); break;
-      //   }
-      //   else {
-      //     /* Test */ color = vec4(0.5, 0.5, 0.5, 1.0); break;
-      //   }
-      //
-      //   if (
-      //     minT > 0.0 &&
-      //     all(greaterThanEqual(intersection, izero)) &&
-      //     all(lessThan(intersection, size))
-      //   ) {
-      //     // Look up texture
-      //     color = texture( u_texture, vec3(intersection) + vec3(0.5) );\
-      //     break;
-      //   }
-      //
-      //   slab -= normal;
-      // }
-      // outColor = color;
+      for (int i = 0; i < ITERATION_LIMIT; ++i) {
+
+        // Break out of the loop if end is reached.
+        if (any(lessThan(slab, izero)) || any(greaterThanEqual(slab, size))) {
+            break;
+        }
+
+        ivec3 normal, intersection;
+        vec3 ts = (vec3(pos + slab + offset) - origin) / ray;
+        float minT = min(ts.x, min(ts.y, ts.z));
+
+        // Compute normal and intersection
+        if (ts.x == minT) {
+          normal = ivec3(offset.x * 2 - 1);
+          intersection = ivec3(
+              slab.x,
+              int(origin.y + ray.y * minT - float(pos.y)),
+              int(origin.z + ray.z * minT - float(pos.z))
+          );
+          /* Test */ color = vec4(1.0, 0.0, 0.0, 1.0); break;
+        }
+        else if (ts.y == minT) {
+          normal = ivec3(offset.y * 2 - 1);
+          intersection = ivec3(
+              int(origin.x + ray.x * minT - float(pos.x)),
+              slab.y,
+              int(origin.z + ray.z * minT - float(pos.z))
+          );
+          /* Test */ color = vec4(0.0, 1.0, 0.0, 1.0); break;
+        }
+        else if (ts.z == minT) {
+          normal = ivec3(offset.z * 2 - 1);
+          intersection = ivec3(
+              int(origin.x + ray.x * minT - float(pos.x)),
+              int(origin.y + ray.y * minT - float(pos.y)),
+              slab.z
+          );
+          /* Test */ color = vec4(0.0, 0.0, 1.0, 1.0); break;
+        }
+        else {
+          /* Test */ color = vec4(0.5, 0.5, 0.5, 1.0); break;
+        }
+
+        if (
+          minT > 0.0 &&
+          all(greaterThanEqual(intersection, izero)) &&
+          all(lessThan(intersection, size))
+        ) {
+          // Look up texture
+          color = texture( u_texture, vec3(intersection) + vec3(0.5) );\
+          break;
+        }
+
+        slab -= normal;
+      }
+      outColor = color;
     }
   `);
 
