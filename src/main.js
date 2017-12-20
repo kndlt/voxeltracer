@@ -70,7 +70,7 @@ function main() {
 
     // Set the camera position
     mat4.perspective(persp, 45 * DEG2RAD, gl.canvas.width / gl.canvas.height, 0.1, 1000);
-    mat4.lookAt(view, [0,4,10],[0,0,0], [0,1,0]);
+    mat4.lookAt(view, [0,80,80],[0,0,0], [0,1,0]);
 
     // Create modelview and projection matrices
     mat4.multiply(temp, view, model);
@@ -479,7 +479,6 @@ function main() {
                 resolve({ error: model.error });
                 return;
             }
-            debugger;
             loadModel(model);
         })
       }
@@ -526,7 +525,7 @@ function main() {
         return data;
       })()
     };
-  })(4, 4, 4);
+  })(32, 32, 32);
   loadModel(placeholderModel);
 }
 
