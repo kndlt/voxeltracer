@@ -73,7 +73,7 @@ function main() {
 
     // Set the camera position
     mat4.perspective(persp, 45 * DEG2RAD, gl.canvas.width / gl.canvas.height, 0.1, 1000);
-    mat4.lookAt(view, [0,80,80],[0,0,0], [0,1,0]);
+    mat4.lookAt(view, [0,20,70],[0,0,0], [0,1,0]);
 
     // Create modelview and projection matrices
     mat4.multiply(temp, view, model);
@@ -313,8 +313,8 @@ function main() {
         // Load size
         var size = {
           x: sizePack.x,
-          y: sizePack.y,
-          z: sizePack.z
+          y: sizePack.z,
+          z: sizePack.y
         };
 
         // Load voxel data
@@ -322,7 +322,7 @@ function main() {
         var voxelData = new Uint8Array(size.x * size.y * size.z);
         for (var voxelI = 0; voxelI < voxels.length; ++voxelI) {
             var voxel = voxels[voxelI];
-            voxelData[voxel.x + size.x * voxel.y + size.x * size.y * voxel.z] =
+            voxelData[voxel.x + size.x * voxel.z + size.x * size.z * (size.y - voxel.y - 1)] =
               voxel.colorIndex;
         }
 
