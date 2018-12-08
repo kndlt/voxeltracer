@@ -1,0 +1,38 @@
+{
+  "name": "voxelviewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": "git+https://github.com/kndlt/voxelviewer.git",
+  "keywords": [],
+  "author": "kndlt <kndlt22@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kndlt/voxelviewer/issues"
+  },
+  "homepage": "https://github.com/kndlt/voxelviewer#readme",
+  "devDependencies": {
+    "@types/jest": "^23.3.10",
+    "jest": "^23.6.0",
+    "ts-jest": "^23.10.5",
+    "typescript": "^3.2.2"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ],
+    "testRegex": "^.+\\.spec\\.ts$"
+  }
+}
