@@ -1,28 +1,39 @@
 import React, { Component } from 'react';
+import { Shaders, Node, GLSL } from "gl-react";
+import { Surface } from "gl-react-dom";
 import logo from './logo.svg';
 import './App.css';
 
-class App extends Component {
+const shaders = Shaders.create({
+  helloBlue: {
+    frag: GLSL`
+      precision highp float;
+      varying vec2 uv;
+      uniform float blue;
+      void main() {
+        gl_FragColor = vec4(uv.x, uv.y, blue, 1.0);
+      }
+    `
+  }
+});
+
+class VoxelViewer extends React.Component {
   render() {
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.tsx</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
+      // @ts-ignore
+      <Surface width={300} height={300}>
+        <Node shader={shaders.helloBlue} uniforms={{ blue: 0.5 }} />
+      </Surface>
     );
   }
 }
 
-export default App;
+export default class App extends Component {
+  render() {
+    return (
+      <div className="App">
+        <VoxelViewer />
+      </div>
+    );
+  }
+}

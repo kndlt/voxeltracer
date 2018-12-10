@@ -5,10 +5,10 @@ charset = utf-8
 end_of_line = lf
 indent_style = space
 
-[src/**.{ts,json,js}]
+[src/**.{ts,tsx,json,js,jsx}]
 trim_trailing_whitespace = true
 insert_final_newline = true
-indent_size = 4
+indent_size = 2
 
 [webpack.*.js]
 indent_size = 2
