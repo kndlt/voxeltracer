@@ -4,6 +4,7 @@ import { Scene, PerspectiveCamera, Vector3, Matrix4 } from "three";
 import { Surface } from "gl-react-dom";
 import VoxelShader from '../VoxelShader/VoxelShader';
 import ReactAnimationFrame from 'react-animation-frame';
+import VoxelArt from "../../Data/Models/VoxelArt";
 
 const OrbitControls = require('three-orbit-controls')(THREE);
 
@@ -12,10 +13,11 @@ interface OrbitControls extends THREE.OrbitControls {}
 interface VoxelViewerProps { }
 
 interface VoxelViewerState {
-  progress: number,
-  eye: number[],
-  matrixWorldInverse: Float32Array,
-  projectionMatrixInverse: Float32Array
+  progress: number;
+  eye: number[];
+  matrixWorldInverse: Float32Array;
+  projectionMatrixInverse: Float32Array;
+  model: VoxelArt;
 }
 
 class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
@@ -29,7 +31,12 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     this.camera = new PerspectiveCamera(75, 1, 0.01, 1000);
     this.camera.position.set(0, 0, 5);
     this.camera.lookAt(new Vector3(0, 0, 0));
+
+    const model = new VoxelArt();
+    model.size = new Vector3(1,1,1);
+
     this.state = {
+      model,
       progress: 0,
       eye: this.camera.position.toArray(),
       matrixWorldInverse: this.camera.matrixWorldInverse.elements,
@@ -98,6 +105,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
       // @ts-ignore
       <Surface width={300} height={300}>
         <VoxelShader
+          model={this.state.model}
           progress={this.state.progress}
           eye={this.state.eye}
           matrixWorldInverse={this.state.matrixWorldInverse}
