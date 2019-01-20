@@ -21,11 +21,9 @@ uniform float progress;
 
 void main() {
 
-  Model model = Model(ivec3(0), modelSize);
+  Model model = Model(-modelSize/2, modelSize);
 
   Ray ray = castRay(eye, viewMatrixInverse, projectionMatrixInverse, uv);
-
-  gl_FragColor = projectionMatrixInverse * vec4(ray.dir, 1.0);
 
   // float seed = progress;
   // float rand = random(vec3(12.9898, 78.233, 151.7182), seed);
@@ -35,7 +33,13 @@ void main() {
 
   Hit hit = intersectModel(ray, model);
 
+  vec3 lightDir = normalize(vec3(-1.0, 2.0, -2.0));
+
   if (hit.didHit) {
-    gl_FragColor = vec4(vec3(1.0), 1.0);
+    gl_FragColor.rgb = vec3(max(dot(hit.normal, lightDir), 0.0) * 0.8 + 0.2);
+    gl_FragColor.a = 1.0;
+  }
+  else {
+    gl_FragColor = projectionMatrixInverse * vec4(ray.dir, 1.0);
   }
 }

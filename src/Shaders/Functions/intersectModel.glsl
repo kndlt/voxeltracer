@@ -1,6 +1,7 @@
 #pragma glslify: Ray = require('../Structs/Ray')
 #pragma glslify: Hit = require('../Structs/Hit')
 #pragma glslify: Model = require('../Structs/Model')
+#pragma glslify: mod = require('../Functions/mod')
 #pragma glslify: intersectBoundingBox = require('./intersectBoundingBox')
 
 const float EPSILON = 0.0001;
@@ -78,7 +79,8 @@ Hit intersectModel(Ray ray, Model model) {
     // If within bound, then texture lookup.
     else if (all(greaterThanEqual(cellIndex, ivec3(0))) && all(lessThan(cellIndex, ivec3(model.size)))) {
 
-      if (cellIndex.y-cellIndex.y/2*2 == 1) {
+      // Mod
+      if (mod(cellIndex.y, 2) == 0) {
         return Hit(true, hitT, hitNormal, 1);
       }
     }
