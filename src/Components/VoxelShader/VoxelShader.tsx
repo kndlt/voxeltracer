@@ -1,5 +1,5 @@
 import React from "react";
-import { Shaders, Node, GLSL } from "gl-react";
+import { Shaders, Node, GLSL, Uniform } from "gl-react";
 import NaiveVoxelPathTracer from '../../Shaders/NaiveVoxelPathTracer.glsl';
 import VoxelArt from '../../Data/Models/VoxelArt';
 
@@ -20,13 +20,27 @@ const shaders = Shaders.create({
 const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
   const { eye, viewMatrixInverse, projectionMatrixInverse, progress, model } = props;
   const modelSize = model.size.toArray();
-  return <Node shader={shaders.vt01} uniforms={{
-    eye,
-    viewMatrixInverse,
-    projectionMatrixInverse,
-    modelSize,
-    progress
-  }} />;
+  const modelTexture = model.texture;
+  const modelTextureSize = model.textureSize.toArray();
+  return (
+    <Node
+      shader={shaders.vt01}
+      uniforms={{
+        eye,
+        viewMatrixInverse,
+        projectionMatrixInverse,
+        modelSize,
+        modelTexture,
+        modelTextureSize,
+        progress,
+      }}
+      uniformsOptions={{
+        modelTexture: {
+          interpolation: 'nearest'
+        }
+      }}
+    />
+  );
 }
 
 export default VoxelShader;

@@ -1,6 +1,6 @@
 import React from "react";
 import * as THREE from 'three';
-import { Scene, PerspectiveCamera, Vector3, Matrix4 } from "three";
+import { Scene, PerspectiveCamera, Vector3, Vector2 } from "three";
 import { Surface } from "gl-react-dom";
 import VoxelShader from '../VoxelShader/VoxelShader';
 import ReactAnimationFrame from 'react-animation-frame';
@@ -32,8 +32,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     this.camera.position.set(0, 0, 10);
     this.camera.lookAt(new Vector3(0, 0, 0));
 
-    const model = new VoxelArt();
-    model.size = new Vector3(1,1,1);
+    const model = new VoxelArt(new Vector3(4,4,4));
 
     this.state = {
       model,
@@ -104,14 +103,14 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     // const projectionMatrixInverse: Matrix4 = this.camera.projectionMatrixInverse;
 
     // Render with minimum pixel ratio of 2.
-    const pixelRatio = Math.max(window.devicePixelRatio || 1, 2);
+    const pixelRatio = window.devicePixelRatio || 1;
 
     return (
       // Matrix4 invertedModelViewProjectionMatrix =
       // (_camera.projectionMatrix * _camera.viewMatrix * _modelMatrix).inverted();
 
       // @ts-ignore
-      <Surface width={512} height={512} pixelRatio={pixelRatio}>
+      <Surface width={300} height={300} pixelRatio={pixelRatio}>
         <VoxelShader
           model={this.state.model}
           progress={this.state.progress}
