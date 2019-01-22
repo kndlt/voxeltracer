@@ -23,15 +23,23 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
   const modelTexture = model.texture;
   const modelTextureSize = model.texture.shape;
   return (
-    <Node shader={shaders.vt01} uniforms={{
-      eye,
-      viewMatrixInverse,
-      projectionMatrixInverse,
-      modelSize,
-      modelTexture,
-      modelTextureSize,
-      progress
-    }} />
+    <Node
+      shader={shaders.vt01}
+      uniforms={{
+        eye,
+        viewMatrixInverse,
+        projectionMatrixInverse,
+        modelSize,
+        modelTexture,
+        modelTextureSize,
+        progress,
+      }}
+      uniformsOptions={{
+        modelTexture: {
+          interpolation: 'nearest'
+        }
+      }}
+    />
   );
 }
 
