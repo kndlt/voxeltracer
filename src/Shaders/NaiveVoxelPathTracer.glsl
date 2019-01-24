@@ -14,6 +14,7 @@ uniform mat4 viewMatrixInverse;
 uniform mat4 projectionMatrixInverse;
 uniform vec3 eye;
 uniform Model models[1];
+// uniform sampler2D modelTextures[1];
 // uniform ivec3 modelPos;
 // uniform ivec3 modelSize;
 // uniform ivec2 modelTextureSize;
