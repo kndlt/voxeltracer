@@ -6,7 +6,7 @@ precision highp sampler2D;
 #pragma glslify: Hit = require('./Structs/Hit')
 #pragma glslify: castRay = require('./Functions/castRay')
 #pragma glslify: castShadow = require('./Functions/castShadow')
-#pragma glslify: intersectModel = require('./Functions/intersectModel')
+#pragma glslify: intersectModels = require('./Functions/intersectModels')
 
 uniform sampler2D paletteTexture;
 varying vec2 uv;
@@ -38,7 +38,7 @@ void main() {
   // Test
   // gl_FragColor = vec4(float(model.textureSize.x) / 10.0, 0.0, 0.0, 1.0); return;
 
-  Model model = models[1];
+  // Model model = models[1];
 
   Ray ray = castRay(eye, viewMatrixInverse, projectionMatrixInverse, uv);
 
@@ -48,7 +48,7 @@ void main() {
   // float n = random(uv);
   // gl_FragColor = vec4(vec3(n) + rand, 1.0);
 
-  Hit hit = intersectModel(ray, model);
+  Hit hit = intersectModels(ray, models, modelCount);
 
   vec3 lightDir = normalize(vec3(-1.1, 1.9, -1.7));
 
@@ -58,7 +58,7 @@ void main() {
     // gl_FragColor = vec4(hit.t * vec3(0.1), 1.0); return;
 
     // Shadow ray
-    float shadowMultiplier = castShadow(hit.pos, model, lightDir);
+    float shadowMultiplier = castShadow(hit.pos, models, modelCount, lightDir);
 
     vec3 color = vec3(1.0);
     float lightMultiplier = max(dot(hit.normal, lightDir), 0.0);
