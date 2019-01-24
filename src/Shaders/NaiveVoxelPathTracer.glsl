@@ -1,34 +1,44 @@
 precision highp float;
 precision highp sampler2D;
 
-uniform sampler2D paletteTexture;
-varying vec2 uv;
-uniform mat4 viewMatrixInverse;
-uniform mat4 projectionMatrixInverse;
-uniform vec3 eye;
-uniform ivec3 modelPos;
-uniform ivec3 modelSize;
-uniform ivec2 modelTextureSize;
-uniform float progress;
-
 #pragma glslify: Model = require('./Structs/Model')
 #pragma glslify: Ray = require('./Structs/Ray')
 #pragma glslify: Hit = require('./Structs/Hit')
 #pragma glslify: castRay = require('./Functions/castRay')
 #pragma glslify: castShadow = require('./Functions/castShadow')
 #pragma glslify: intersectModel = require('./Functions/intersectModel')
+
+uniform sampler2D paletteTexture;
+varying vec2 uv;
+uniform mat4 viewMatrixInverse;
+uniform mat4 projectionMatrixInverse;
+uniform vec3 eye;
+uniform Model models[1];
+// uniform ivec3 modelPos;
+// uniform ivec3 modelSize;
+// uniform ivec2 modelTextureSize;
+uniform float progress;
+
 // #pragma glslify: random = require('./Functions/random')
 
 const float EPSILON = 0.0001;
 
 void main() {
 
+  // gl_FragColor = vec4(someData[0].colors[0].rgb, 1.0); return;
+  // vec4 texelValue = texture2D(someData[0].tex, uv);
+  // gl_FragColor = vec4(texelValue.rgb, 1.0); return;
+
   // // Debug texture.
   // vec4 texelValue = texture2D(modelTexture, uv);
   // gl_FragColor = vec4(texelValue.rgb, 1.0); return;
 
+  // Model model = models[0];
 
-  Model model = Model(0, -modelSize/2, modelSize, modelTextureSize);
+  // Test
+  // gl_FragColor = vec4(float(model.textureSize.x) / 10.0, 0.0, 0.0, 1.0); return;
+
+  Model model = Model(0, ivec3(-2, -2, -2), ivec3(4, 4, 4), ivec2(4, 4));
 
   Ray ray = castRay(eye, viewMatrixInverse, projectionMatrixInverse, uv);
 

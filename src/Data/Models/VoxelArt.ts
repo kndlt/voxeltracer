@@ -2,10 +2,12 @@ import { Vector3, Vector2 } from "three";
 import ndarray from "ndarray";
 
 export default class VoxelArt {
+  pos: Vector3;
   size: Vector3;
   texture: ndarray;
-  constructor (size: Vector3) {
+  constructor (pos: Vector3, size: Vector3) {
     this.size = size;
+    this.pos = pos;
     const numSlates = Math.ceil(size.y / 4);
 
     let width = Math.max(Math.max(size.x, size.z), 1);

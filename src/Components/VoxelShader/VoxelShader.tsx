@@ -8,7 +8,7 @@ interface VoxelShaderProps {
   viewMatrixInverse: Float32Array;
   projectionMatrixInverse: Float32Array;
   progress: number;
-  model: VoxelArt;
+  models: VoxelArt[];
 }
 
 const shaders = Shaders.create({
@@ -18,10 +18,15 @@ const shaders = Shaders.create({
 });
 
 const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
-  const { eye, viewMatrixInverse, projectionMatrixInverse, progress, model } = props;
-  const modelSize = model.size.toArray();
-  const modelTexture = model.texture;
-  const modelTextureSize = model.textureSize.toArray();
+  const { eye, viewMatrixInverse, projectionMatrixInverse, progress, models } = props;
+  const modelHashes = models.map((model, index) => {
+    return {
+      index,
+      pos: model.pos.toArray(),
+      size: model.size.toArray(),
+      textureSize: model.textureSize.toArray(),
+    };
+  })
   return (
     <Node
       shader={shaders.vt01}
@@ -29,10 +34,9 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
         eye,
         viewMatrixInverse,
         projectionMatrixInverse,
-        modelSize,
-        modelTexture,
-        modelTextureSize,
-        progress,
+        models: modelHashes,
+        modelTexture: models[0].texture,
+        progress
       }}
       uniformsOptions={{
         modelTexture: {
