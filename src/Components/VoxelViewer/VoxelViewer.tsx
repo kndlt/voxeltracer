@@ -34,8 +34,8 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   constructor(props: VoxelViewerProps) {
     super(props);
     // this.scene = new Scene();
-    this.camera = new PerspectiveCamera(45, 1, 0.01, 1000);
-    this.camera.position.set(0, 0, 20);
+    this.camera = new PerspectiveCamera(60, 1, 0.01, 1000);
+    this.camera.position.set(0, 0, -100);
     this.camera.lookAt(new Vector3(0, 0, 0));
 
     this.loader = new Loader();

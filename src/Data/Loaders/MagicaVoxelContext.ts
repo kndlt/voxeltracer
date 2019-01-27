@@ -4,7 +4,7 @@ import Material from "../Models/Material";
 import MaterialArray from "../Arrays/MaterialArray";
 import Context from "./Context";
 import { readInt, readStr, uint8 } from "./ByteUtil";
-import { Vector3 } from "three";
+import { Vector3, Matrix4 } from "three";
 
 class Chunk {
   size: number = 0;
@@ -62,6 +62,18 @@ class UnsupportedChunk extends Chunk {
   // Not implemented yet
 }
 
+/**
+ * MagicaVoxel coordinate to OpenGL coordinate system.
+ * Rotation x of 90 degrees.
+ */
+const magicaVoxelToOpenGlCoordinates: Matrix4 = new Matrix4();
+magicaVoxelToOpenGlCoordinates.set(
+  1, 0, 0, 0,
+  0, 0, 1, 0,
+  0, -1, 0, 0,
+  0, 0, 0, 1
+);
+
 export default class MagicaVoxelContext extends Context {
 
   public decode(buffer: ArrayBuffer): VoxelScene {
@@ -107,19 +119,29 @@ export default class MagicaVoxelContext extends Context {
         if (!sizeChunk) {
           throw 'Missing size chunk.';
         }
-        const pos = new Vector3(0, 0, 0);
-        const size = new Vector3(sizeChunk.x, sizeChunk.y, sizeChunk.z);
+        const rawSize = new Vector3(sizeChunk.x, sizeChunk.y, sizeChunk.z);
+        const size = rawSize.applyMatrix4(magicaVoxelToOpenGlCoordinates);
+        size.z = -size.z;
+
+        const pos = new Vector3(
+          -Math.floor(size.x / 2),
+          -Math.floor(size.y / 2),
+          -Math.floor(size.z / 2)
+        );
         const model = new VoxelArt(pos, size);
         const { xyzis } = chunk;
         const voxelCount = xyzis.length / 4;
         for (let t = 0; t < voxelCount; ++t) {
           const offset = t * 4;
           // TODO: Z here is gravity direction. Needs to fix this.
-          const x = xyzis[offset + 0];
-          const y = xyzis[offset + 1];
-          const z = xyzis[offset + 2];
+          const rawXyz = new Vector3(
+            xyzis[offset + 0],
+            xyzis[offset + 1],
+            xyzis[offset + 2]
+          );
+          const xyz = rawXyz.applyMatrix4(magicaVoxelToOpenGlCoordinates);
           const i = xyzis[offset + 3];
-          model.setVoxel(x, y, z, i);
+          model.setVoxel(xyz.x, xyz.y, -xyz.z, i);
         }
         models.push(model);
         sizeChunk = null;
