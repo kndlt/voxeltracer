@@ -2,7 +2,6 @@ import React from "react";
 import { Shaders, Node, GLSL, Uniform } from "gl-react";
 import NaiveVoxelPathTracer from '../../Shaders/NaiveVoxelPathTracer.glsl';
 import VoxelArt from '../../Data/Models/VoxelArt';
-import defaultColorPaletteTexture from "../../Data/defaultColorPaletteTexture";
 import Material from "../../Data/Models/Material";
 import MaterialArray from "../../Data/Arrays/MaterialArray";
 
@@ -49,7 +48,11 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
     models: getModelHashes(models),
     materialColorTexture: materials.colorTexture
   };
-  const uniformsOptions: any = {};
+  const uniformsOptions: any = {
+    materialColorTexture: {
+      interpolation: 'nearest'
+    }
+  };
   for (let i = 0; i < MAX_MODELS; ++i) {
     const model = models[i];
     if (model) {
@@ -65,6 +68,7 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
       shader={shaders.vt01}
       uniforms={uniforms}
       uniformsOptions={uniformsOptions}
+      ignoreUnusedUniforms={true}
     />
   );
 }
