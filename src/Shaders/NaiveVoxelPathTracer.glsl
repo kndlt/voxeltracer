@@ -139,17 +139,9 @@ void main() {
     computedColor.a = 1.0;
   }
 
-  vec4 finalColor;
-  if (tick == 0) {
-    finalColor = computedColor;
-  }
-  else {
-    vec4 previousColor = getPreviousColor(uv);
-    // float progress = clamp(float(tick) / float(maxTick), 0.0, 1.0);
-    float weight = 1.0 / float(tick + 1);
-    finalColor = mix(previousColor, computedColor, weight);
-  }
-
+  float weight = 1.0 / float(tick + 1);
+  vec4 previousColor = tick > 0 ? getPreviousColor(uv) : vec4(0.0);
+  vec4 finalColor = mix(previousColor, computedColor, weight);
   gl_FragColor = finalColor;
 }
 
