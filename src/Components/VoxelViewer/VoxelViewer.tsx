@@ -43,6 +43,8 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
     this.loader = new Loader();
     this.scene = new VoxelScene();
+
+    window.addEventListener('resize', this.onWindowResize);
     // // Sample model.
     // models.push(
     //   new VoxelArt(
@@ -136,6 +138,12 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
   }
 
+  restartRender() {
+    this.endAnimation();
+    this.setState({ tick: 0 });
+    this.startAnimation();
+  }
+
   onAnimationFrame(time: number) {
     const { tick } = this.state;
     this.setState({ tick: tick + 1 });
@@ -143,6 +151,21 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
       console.log('Render completed.');
       this.endAnimation();
     }
+  }
+
+  onContextLost = () => {
+    console.log('context lost');
+    this.endAnimation();
+  }
+
+  onContextRestored = () => {
+    console.log('context restored');
+    this.restartRender();
+  }
+
+  onWindowResize = () => {
+    console.log('window resize');
+    this.restartRender();
   }
 
   render() {
@@ -167,6 +190,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
         width={viewportSize.x}
         height={viewportSize.y}
         pixelRatio={pixelRatio}
+        onContextRestored={this.onContextRestored}
         // webglContextAttributes={{ preserveDrawingBuffer: true }}
       >
         <VoxelShader
