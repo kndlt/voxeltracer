@@ -13,7 +13,7 @@ vec3 jitterLightDir(vec3 dir, float theta, float normalizedSeed) {
     random(vec2(normalizedSeed, 0.1)),
     random(vec2(normalizedSeed, 0.2))
   ) - 0.5);
-  float distanceFactor = 0.1 *
+  float distanceFactor = 0.05 *
     random(vec2(normalizedSeed, 0.3));
   return normalize(dir + (randomDir * distanceFactor));
 }
