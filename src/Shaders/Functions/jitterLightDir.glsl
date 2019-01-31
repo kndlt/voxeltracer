@@ -10,10 +10,12 @@ vec3 jitterLightDir(vec3 dir, float theta, float normalizedSeed) {
 
   vec3 randomDir = normalize(vec3(
     random(vec2(normalizedSeed, 0.0)),
-    random(vec2(normalizedSeed, 0.5)),
-    random(vec2(normalizedSeed, 1.0))
+    random(vec2(normalizedSeed, 0.1)),
+    random(vec2(normalizedSeed, 0.2))
   ) - 0.5);
-  return normalize(dir + (randomDir * 0.01));
+  float distanceFactor = 0.1 *
+    random(vec2(normalizedSeed, 0.3));
+  return normalize(dir + (randomDir * distanceFactor));
 }
 
 #pragma glslify: export(jitterLightDir)
