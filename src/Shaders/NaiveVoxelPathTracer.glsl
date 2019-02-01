@@ -55,16 +55,32 @@ void main() {
   vec3 colorMask = vec3(1.0);
 
   for (int i = 0; i < BOUNCE_LIMIT; ++i) {
+    // Trace
     Hit hit = intersectModels(ray, models);
-    if (!hit.didHit) {
-      break;
-    }
+
+    // Break if no more hit
+    if (!hit.didHit) break;
+
+    // Shadow
     float shadowMultiplier = castShadow(hit.pos, models, jitteredLightDir);
+
+    // Diffuse
     float diffuseAmount = max(0.0, dot(jitteredLightDir, hit.normal));
     Material material = getMaterial(hit.materialIndex);
+
+    // Apply Color
     vec3 surfaceColor = material.color.rgb;
     colorMask *= surfaceColor;
+
+    // Accumulate Colors
     accumulatedColor += colorMask * (diffuseAmount * shadowMultiplier);
+
+    // First slide will have no indirect lighting
+    if (tick == 0) {
+      break;
+    }
+
+    // Compute next direction.
     float seed = (float(tick * 10) + float(i)) / 10000.0;
     ray.dir = cosineWeightedDirection(seed, hit.normal);
     ray.origin = hit.pos + ray.dir * EPSILON;
