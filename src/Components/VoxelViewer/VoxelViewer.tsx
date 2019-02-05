@@ -10,7 +10,7 @@ import VoxelScene from "../../Data/Models/VoxelScene";
 import Loader from "../../Data/Loaders/Loader";
 import ReactTimeout from 'react-timeout'
 
-const MAX_TICK = 256;
+const MAX_TICK = 1024;
 const OrbitControls = require('three-orbit-controls')(THREE);
 
 interface OrbitControls extends THREE.OrbitControls {}
@@ -40,8 +40,8 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     super(props);
     // this.scene = new Scene();
     this.camera = new PerspectiveCamera(60, 1, 0.01, 1000);
-    this.camera.position.set(0, 0, -100);
-    this.camera.lookAt(new Vector3(0, 0, 0));
+    this.camera.position.set(0, 60, -100);
+    this.camera.lookAt(new Vector3(0, 25, 0));
 
     this.loader = new Loader();
     this.scene = new VoxelScene();
@@ -115,6 +115,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     // TODO: Figure out why this is needed.
     // Ideally, this should have been handled by the Orbit controlls.
     this.camera.lookAt(new Vector3(0, 0, 0));
+    // this.camera.lookAt(new Vector3(0, 25, 0));
 
     this.setState({
       tick: 0,
@@ -163,6 +164,12 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     this.setState({
       tick: tick + 1
     });
+    if (tick === 0) {
+      console.log('Render started');
+    }
+    else if (tick % 50 === 0) {
+      console.log(`Rendering: ${tick}/${MAX_TICK}.`);
+    }
     if (tick > MAX_TICK) {
       console.log('Render completed.');
       this.endAnimation();
