@@ -256,7 +256,7 @@ export default class MagicaVoxelContext extends Context {
         case '_emit': type = MaterialType.EMISSIVE; break;
         default: type = MaterialType.DIFFUSE; break;
       }
-      debugger;
+
       const options: MatlChunkOptions = { type };
 
       if (dict._weight) {
