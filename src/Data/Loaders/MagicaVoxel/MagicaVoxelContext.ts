@@ -159,10 +159,11 @@ export default class MagicaVoxelContext extends Context {
       else if(chunk instanceof MatlChunk) {
         const { materialId, options } = chunk;
         let material;
+        // TODO: Magica voxel has `_unit` in emmissive materials which we are not handling right now.
         switch(options.type) {
-          case MaterialType.METAL: material = new MetallicMaterial(options.weight!, options.rough!, options.spec!, options.plastic!); break;
+          case MaterialType.METAL: material = new MetallicMaterial(options.weight!, options.rough!, options.spec!, !!options.plastic!); break;
           case MaterialType.GLASS: material = new GlassMaterial(options.weight!, options.rough!, options.ior!, options.att!); break;
-          case MaterialType.EMISSIVE: material = new EmmissiveMaterial(options.weight!, options.flux!, 0); break;
+          case MaterialType.EMISSIVE: material = new EmmissiveMaterial(options.weight!, options.flux!, options.glow!); break;
           default: material = new DiffuseMaterial();
         }
         materials.setAt(materialId, material);
@@ -255,7 +256,7 @@ export default class MagicaVoxelContext extends Context {
         case '_emit': type = MaterialType.EMISSIVE; break;
         default: type = MaterialType.DIFFUSE; break;
       }
-
+      debugger;
       const options: MatlChunkOptions = { type };
 
       if (dict._weight) {
@@ -278,6 +279,12 @@ export default class MagicaVoxelContext extends Context {
       }
       if (dict._plastic) {
         options.plastic = !!parseInt(dict._plastic as string);
+      }
+      if (dict._unit) {
+        options.unit = !!parseInt(dict._unit as string);
+      }
+      if (dict._glow) {
+        options.glow = !!parseInt(dict._glow as string);
       }
 
       chunk = new MatlChunk(materialId, options);

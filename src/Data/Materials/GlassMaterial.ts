@@ -7,9 +7,9 @@ export default class GlassMaterial extends Material{
   attenuation: number;
   constructor (weight: number, roughness: number, refraction: number, attenuation: number) {
     super();
-    this.weight = weight;
-    this.roughness = roughness;
-    this.refraction = refraction;
-    this.attenuation = attenuation;
+    this.weight = weight || 0;
+    this.roughness = roughness || 0;
+    this.refraction = refraction || 0;
+    this.attenuation = attenuation || 0;
   }
 }

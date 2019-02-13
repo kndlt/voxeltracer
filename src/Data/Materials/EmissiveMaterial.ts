@@ -6,8 +6,8 @@ export default class EmmissiveMaterial extends Material{
   glow: number;
   constructor (weight: number, flux: number, glow: number) {
     super();
-    this.weight = weight;
-    this.flux = flux;
-    this.glow = glow;
+    this.weight = weight || 0;
+    this.flux = flux || 0;
+    this.glow = glow || 0;
   }
 }

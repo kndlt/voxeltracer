@@ -7,9 +7,9 @@ export default class MetallicMaterial extends Material{
   plastic: boolean;
   constructor (weight: number, roughness: number, specular: number, plastic: boolean) {
     super();
-    this.weight = weight;
-    this.roughness = roughness;
-    this.specular = specular;
-    this.plastic = plastic;
+    this.weight = weight || 0;
+    this.roughness = roughness || 0;
+    this.specular = specular || 0;
+    this.plastic = plastic || false;
   }
 }
