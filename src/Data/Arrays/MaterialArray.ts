@@ -54,7 +54,7 @@ export default class MaterialArray {
     const i = index % 16;
     const j = Math.floor(index / 16);
     this.materialTexture.set(i, j, 0, r);
-    this.materialTexture.set(i, j, 1, b);
+    this.materialTexture.set(i, j, 1, g);
     this.materialTexture.set(i, j, 2, b);
     this.materialTexture.set(i, j, 3, a);
   }
