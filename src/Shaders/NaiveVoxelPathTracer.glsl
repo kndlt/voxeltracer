@@ -63,7 +63,6 @@ void main() {
   vec3 accumulatedColor = vec3(0.0);
   vec3 colorMask = vec3(1.0);
 
-  // TODO: On shady metal area, there is a jaggid artifact.
   // TODO: Bounce limit should be configurable by the user.
   for (int i = 0; i < BOUNCE_LIMIT + 1; ++i) {
     // Trace
