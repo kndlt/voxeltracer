@@ -7,19 +7,18 @@ precision highp sampler2D;
 #pragma glslify: Material = require('./Structs/Material')
 #pragma glslify: castRay = require('./Functions/castRay')
 #pragma glslify: getMaterial = require('./Functions/getMaterial')
-#pragma glslify: cosineWeightedDirection = require('./Functions/cosineWeightedDirection')
-#pragma glslify: uniformlyRandomVector = require('./Functions/uniformlyRandomVector')
 #pragma glslify: castShadow = require('./Functions/castShadow')
 #pragma glslify: jitterUV = require('./Functions/jitterUV')
 #pragma glslify: jitterLightDir = require('./Functions/jitterLightDir')
 #pragma glslify: intersectModels = require('./Functions/intersectModels')
+#pragma glslify: bounceRay = require('./Functions/bounceRay')
 #pragma glslify: getPreviousColor = require('./Functions/getPreviousColor')
+#pragma glslify: fresnel = require('./Functions/fresnel')
 #pragma glslify: MAX_MODEL_COUNT = require('./Constants/MAX_MODEL_COUNT')
 #pragma glslify: MATL_DIFFUSE = require('./Constants/MATL_DIFFUSE');
 #pragma glslify: MATL_METAL = require('./Constants/MATL_METAL');
 #pragma glslify: MATL_GLASS = require('./Constants/MATL_GLASS');
 #pragma glslify: MATL_EMISSIVE = require('./Constants/MATL_EMISSIVE');
-#pragma glslify: random = require('glsl-random');
 
 varying vec2 uv;
 uniform vec3 eye;
@@ -40,10 +39,6 @@ uniform int tick;
 uniform int maxTick;
 uniform ivec2 resolution;
 
-// #pragma glslify: random = require('./Functions/random')
-
-
-const float EPSILON = 0.0001;
 const int BOUNCE_LIMIT = 2;
 
 void main() {
@@ -66,7 +61,7 @@ void main() {
   // TODO: Bounce limit should be configurable by the user.
   for (int i = 0; i < BOUNCE_LIMIT + 1; ++i) {
     // Trace
-    Hit hit = intersectModels(ray, models);
+    Hit hit = intersectModels(ray, models, 0);
 
     // Break if no more hit
     if (!hit.didHit) break;
@@ -77,40 +72,44 @@ void main() {
     // Get material
     Material material = getMaterial(hit.materialIndex);
 
-    // // Debug
-    // gl_FragColor = vec4(
-    //   material.type == MATL_DIFFUSE ? 1.0 : 0.0,
-    //   material.type == MATL_METAL ? 1.0 : 0.0,
-    //   material.type == MATL_GLASS ? 1.0 : 0.0,
-    //   1.0
-    // );
-    // return;
-
     // Components
+    float materialWeight = material.weight;
+    vec3 surfaceColor = material.color.rgb;
     float diffuseAmount = 0.0;
     float specularHighlight = 0.0;
     float emission = 0.0;
 
     // Metal
     if (material.type == MATL_METAL) {
+      colorMask *= surfaceColor;
       diffuseAmount = max(0.0, dot(jitteredLightDir, hit.normal));
       vec3 reflectedLight = normalize(reflect(jitteredLightDir - hit.pos, hit.normal));
       specularHighlight = max(0.0, dot(reflectedLight, normalize(hit.pos - ray.origin)));
-      specularHighlight = material.weight * material.specular * pow(specularHighlight, 3.0);
+      specularHighlight = materialWeight * material.specular * pow(specularHighlight, 3.0);
+    }
+    // Glass
+    if (material.type == MATL_GLASS) {
+      colorMask *= vec3(1.0) * materialWeight + (1.0 - materialWeight) * surfaceColor;
+      diffuseAmount = (1.0 - materialWeight) * max(0.0, dot(jitteredLightDir, hit.normal));
+      float ior = 1.0 + material.refraction;
+      // TODO: Fresnel, should we add specular for fresnel term?
+      // float fresnelReflectance = fresnel(1.0 / ior, ray.dir, hit.normal);
+      // vec3 reflectedLight = normalize(reflect(jitteredLightDir - hit.pos, hit.normal));
+      // specularHighlight = max(0.0, dot(reflectedLight, normalize(hit.pos - ray.origin)));
+      // specularHighlight = materialWeight * fresnelReflectance * pow(specularHighlight, 3.0);
     }
     // Emmisive
+    // TODO: Calibrate
     else if (material.type == MATL_EMISSIVE) {
-      diffuseAmount = (1.0 - material.weight) * max(0.0, dot(jitteredLightDir, hit.normal));
-      emission = material.weight * 30.0 * material.flux;
+      colorMask *= surfaceColor;
+      diffuseAmount = (1.0 - materialWeight) * max(0.0, dot(jitteredLightDir, hit.normal));
+      emission = materialWeight * 30.0 * material.flux;
     }
     // Diffuse
     else {
+      colorMask *= surfaceColor;
       diffuseAmount = max(0.0, dot(jitteredLightDir, hit.normal));
     }
-
-    // Apply Color
-    vec3 surfaceColor = material.color.rgb;
-    colorMask *= surfaceColor;
 
     // Accumulate Colors
     // TODO: Verify mathmatical soundness.
@@ -127,25 +126,14 @@ void main() {
     // Seed for random
     float seed = (float(tick * 10) + float(i)) / 10000.0;
 
-    // Material bounce chance
-    bool didBounce = false;
-    float bounceRandom = random(vec2(seed, 0.5));
-    if (bounceRandom < material.weight) {
-      // Metal bounce
-      if (material.type == MATL_METAL) {
-        ray.dir = normalize(reflect(ray.dir, hit.normal)) +
-          uniformlyRandomVector(seed) * material.roughness;
-          didBounce = true;
-      }
+    // Bounce or refract
+    Ray newRay = bounceRay(ray, hit, material, models, seed);
+    if (newRay != ray) {
+      ray = newRay;
     }
-    // Default diffuse bounce logic
-    if (!didBounce) {
-      ray.dir = cosineWeightedDirection(seed, hit.normal);
+    else {
+      break;
     }
-
-    // New ray origin
-    ray.origin = hit.pos + ray.dir * EPSILON;
-
   }
 
   // Ignore first render since it is interstitial render without shadows.
@@ -157,6 +145,14 @@ void main() {
 }
 
 
+// // Debug
+// gl_FragColor = vec4(
+//   material.type == MATL_DIFFUSE ? 1.0 : 0.0,
+//   material.type == MATL_METAL ? 1.0 : 0.0,
+//   material.type == MATL_GLASS ? 1.0 : 0.0,
+//   1.0
+// );
+// return;
 
 // TODO: Does this work???
 // int subPixelCount = subPixelSideCount * subPixelSideCount;
