@@ -19,6 +19,7 @@ import DiffuseMaterial from "../../Materials/DiffuseMaterial";
 import MetallicMaterial from "../../Materials/MetallicMaterial";
 import GlassMaterial from "../../Materials/GlassMaterial";
 import EmmissiveMaterial from "../../Materials/EmissiveMaterial";
+import NtrnChunk from "./Chunks/NtrnChunk";
 
 // /**
 //  * Dictionary type
@@ -288,6 +289,9 @@ export default class MagicaVoxelContext extends Context {
       }
 
       chunk = new MatlChunk(materialId, options);
+    }
+    else if (chunkId === 'nTRN') {
+      // TODO: Implement
     }
     else {
       // console.log(`Skipping unsupported chunk type "${chunkId}"`);
