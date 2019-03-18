@@ -1,5 +1,5 @@
 import Chunk from "./Chunk";
-import MaterialType from "../../../../Enums/MaterialType";
+import MaterialType from "../../../Enums/MaterialType";
 
 export interface MatlChunkOptions {
   type: MaterialType;
