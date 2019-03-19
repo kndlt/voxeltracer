@@ -12,6 +12,9 @@ import NtrnChunk from "../Chunks/NtrnChunk";
 import UnsupportedChunk from "../Chunks/UnsupportedChunk";
 import MagicaVoxelData from "../MagicaVoxelData";
 import MaterialType from "../../../Enums/MaterialType";
+import NgrpChunk from "../Chunks/NgrpChunk";
+import NshpChunk from "../Chunks/NshpChunk";
+import LayrChunk from "../Chunks/LayrChunk";
 
 type Dict = {
   [key: string]: string;
@@ -95,6 +98,12 @@ export default class MagicaVoxelReader extends Reader {
         return this.readMatlChunk();
       case 'nTRN':
         return this.readNtrnChunk();
+      case 'nGRP':
+        return this.readNgrpChunk();
+      case 'nSHP':
+        return this.readNshpChunk();
+      case 'LAYR':
+        return this.readLayrChunk();
       default:
         return this.readUnsupportedChunk();
     }
@@ -221,6 +230,46 @@ export default class MagicaVoxelReader extends Reader {
 
     // TODO: Only one frame is supported for now. Revisit once this changes.
     return new NtrnChunk(nodeId, name, hidden, childNodeId, layerId, transforms[0]);
+  }
+
+  readNgrpChunk(): NgrpChunk {
+    this.readChunkHeader();
+    const nodeId = this.readInt();
+    this.readDict();
+    const numChildNodes = this.readInt();
+    const childNodeIds = [];
+    for (let i = 0; i < numChildNodes; i++) {
+      childNodeIds.push(this.readInt());
+    }
+    return new NgrpChunk(nodeId, childNodeIds);
+  }
+
+  readNshpChunk(): NshpChunk {
+    this.readChunkHeader();
+    const nodeId = this.readInt();
+    this.readDict();
+    const numModels = this.readInt();
+    const modelIds = [];
+    for (let i = 0; i < numModels; i++) {
+      modelIds.push(this.readInt());
+      this.readDict();
+    }
+    // TODO: Only one model is supported for now. Revisit once this changes.
+    return new NshpChunk(nodeId, modelIds[0]);
+  }
+
+  readLayrChunk(): LayrChunk {
+    this.readChunkHeader();
+    const layerId = this.readInt();
+    const dict = this.readDict();
+    const name: string = dict._name || '';
+    const hidden: boolean = dict._hidden === '1';
+    const reservedId = this.readInt();
+    if (reservedId !== -1) {
+      throw 'Expected -1';
+    }
+
+    return new LayrChunk(layerId, name, hidden);
   }
 
   readUnsupportedChunk(): UnsupportedChunk {
