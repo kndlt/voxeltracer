@@ -67,11 +67,13 @@ export default class MagicaVoxelReader extends Reader {
   }
 
   readChunkHeader(): ChunkHeader {
-    return new ChunkHeader(
+    const result = new ChunkHeader(
       this.readStr(4),
       this.readInt(),
       this.readInt()
     );
+    console.log(result);
+    return result;
   }
 
   readChunk(): Chunk {
@@ -216,12 +218,17 @@ export default class MagicaVoxelReader extends Reader {
     for (let i = 0; i < numFrames; i++) {
       transforms.push(this.readTransform());
     }
+
     // TODO: Only one frame is supported for now. Revisit once this changes.
     return new NtrnChunk(nodeId, name, hidden, childNodeId, layerId, transforms[0]);
   }
 
   readUnsupportedChunk(): UnsupportedChunk {
-    this.readChunkHeader();
+    const {
+      numBytesOfChunkContent,
+      numBytesOfChildrenChunks
+    } = this.readChunkHeader();
+    this.skip(numBytesOfChunkContent + numBytesOfChildrenChunks);
     // TODO: Should probably log this.
     return new UnsupportedChunk();
   }
@@ -232,24 +239,35 @@ export default class MagicaVoxelReader extends Reader {
     const translation = dict._t;
     // Row major
     const values = new Array<number>(16).fill(0);
+
+    // Final row
+    values[4 * 3 + 3] = 1;
+
+    // Rotation
     if (rotation !== undefined) {
       const rotNum = parseInt(rotation);
-      // TODO: Implement, right now defaults to no rotation
-      values[4 * 0 + 0] = 1;
-      values[4 * 1 + 1] = 1;
-      values[4 * 2 + 2] = 1;
+      const j0 = rotNum >> 0 & 0b11;
+      const j1 = rotNum >> 2 & 0b11;
+      const j2 = ~(j0 | j1) & 0b11;
+      const v0 = rotNum >> 4 & 0b1 ? -1 : 1;
+      const v1 = rotNum >> 5 & 0b1 ? -1 : 1;
+      const v2 = rotNum >> 6 & 0b1 ? -1 : 1;
+      values[4 * 0 + j0] = v0;
+      values[4 * 1 + j1] = v1;
+      values[4 * 2 + j2] = v2;
     }
     else {
       values[4 * 0 + 0] = 1;
       values[4 * 1 + 1] = 1;
       values[4 * 2 + 2] = 1;
     }
+
+    // Translation
     if (translation !== undefined) {
       const [x, y, z] = translation.split(' ').map(str => parseInt(str));
       values[4 * 0 + 3] = x;
       values[4 * 1 + 3] = y;
       values[4 * 2 + 3] = z;
-      values[4 * 3 + 3] = 1;
     }
     const transform = new Matrix4();
     transform.set(
