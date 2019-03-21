@@ -1,19 +1,19 @@
 import VoxelScene from "../Models/VoxelScene";
-import MagicaVoxelContext from "./MagicaVoxel/MagicaVoxelContext";
 import Context from "./Context";
+import MagicaVoxelContext from "../MagicaVoxel/MagicaVoxelContext";
 
 export default class Loader {
 
-  private decoders: { [_: string]: Context }  = {
+  private contexts: { [_: string]: Context }  = {
     'vox': new MagicaVoxelContext()
   }
 
   private getPotentialDecoders(url: string, buffer: ArrayBuffer): Context[] {
-    const decoders: Context[] = [];
+    const contexts: Context[] = [];
     if (url.endsWith('.vox')) {
-      decoders.push(this.decoders.vox);
+      contexts.push(this.contexts.vox);
     }
-    return decoders;
+    return contexts;
   }
 
   public loadUrl(url: string): Promise<VoxelScene> {
@@ -26,16 +26,16 @@ export default class Loader {
         throw Error(`Unable to download, server returned ${response.status} ${response.statusText}`);
       }
       return response.arrayBuffer().then((buffer) => {
-        let decoders = this.getPotentialDecoders(url, buffer);
+        let contexts = this.getPotentialDecoders(url, buffer);
 
-        if (!decoders.length) {
-          throw "Was unable to find a decoder for the file.";
+        if (!contexts.length) {
+          throw "Was unable to find a context for the file.";
         }
 
         let scene: VoxelScene | null = null;
-        for (let i = 0; i < decoders.length; ++i) {
-          const decoder = decoders[i];
-          scene = decoder.decode(buffer);
+        for (let i = 0; i < contexts.length; ++i) {
+          const context = contexts[i];
+          scene = context.parseScene(buffer);
           if (scene) {
             break;
           }
