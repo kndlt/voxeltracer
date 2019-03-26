@@ -4,12 +4,14 @@ import { PerspectiveCamera, Vector3, Vector2 } from "three";
 import { Surface } from "gl-react-dom";
 import VoxelShader from '../VoxelShader/VoxelShader';
 import ReactAnimationFrame from 'react-animation-frame';
-import VoxelArt from "../../Data/Models/VoxelArt";
 import MaterialArray from "../../Data/Arrays/MaterialArray";
 import VoxelScene from "../../Data/Models/VoxelScene";
 import Loader from "../../Data/Loaders/Loader";
 import ReactTimeout from 'react-timeout'
 import ColorArray from "../../Data/Arrays/ColorArray";
+import ScenePacker from "../../Data/Packers/ScenePacker";
+import ndarray from "ndarray";
+import ShapeHash from "../../Data/Types/ShapeHash";
 
 const MAX_TICK = 1024;
 const OrbitControls = require('three-orbit-controls')(THREE);
@@ -24,11 +26,14 @@ interface VoxelViewerState {
   lightDir: Vector3;
   viewMatrixInverse: Float32Array;
   projectionMatrixInverse: Float32Array;
-  models: VoxelArt[];
+  packedTexture: ndarray;
+  shapeHashes: ShapeHash[];
   materials: MaterialArray;
   colors: ColorArray;
   viewportSize: Vector2;
 }
+
+const dummyPackedTexture: ndarray = ndarray(new Uint8Array(4), [1, 1, 4]);
 
 class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   // scene: Scene;
@@ -38,36 +43,26 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   private loader: Loader;
   private pauseCount: number = 0;
 
+
   constructor(props: VoxelViewerProps) {
     super(props);
     // this.scene = new Scene();
     this.camera = new PerspectiveCamera(60, 1, 0.01, 1000);
-    this.camera.position.set(0, 0, 100);
-    this.camera.lookAt(new Vector3(0, 0, 0));
+    this.camera.position.set(0, 50, 100);
+    this.camera.lookAt(new Vector3(0, 30, 0));
 
     this.loader = new Loader();
     this.scene = new VoxelScene();
 
     window.addEventListener('resize', this.onWindowResize);
-    // // Sample model.
-    // models.push(
-    //   new VoxelArt(
-    //     new Vector3(0, -2, -2),
-    //     new Vector3(4, 4, 4)
-    //   )
-    // );
-    // models.push(
-    //   new VoxelArt(
-    //     new Vector3(-4, -2, -2),
-    //     new Vector3(4, 4, 4)
-    //   )
-    // );
+
     const lightDir = new Vector3(-1.1, 1.9, 1.7);
     lightDir.normalize();
 
     const viewportSize = new Vector2(512, 512);
     this.state = {
-      models: this.scene.models,
+      shapeHashes: [],
+      packedTexture: dummyPackedTexture,
       materials: this.scene.materials,
       colors: this.scene.colors,
       tick: 0,
@@ -81,8 +76,11 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   }
 
   sceneDidChange(): void {
+    const scenePacker = new ScenePacker();
+    const [shapeHashes, packedTexture] = scenePacker.pack(this.scene);
     this.setState({
-      models: this.scene.models,
+      shapeHashes,
+      packedTexture,
       materials: this.scene.materials,
       colors: this.scene.colors,
       tick: 0
@@ -137,7 +135,9 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     // Load deafult model.
     // this.loader.loadUrl('vox/test_matl.vox').then((scene: VoxelScene) => {
     this.loader.loadUrl('vox/pink_mini_store.vox').then((scene: VoxelScene) => {
+    // this.loader.loadUrl('vox/japanese_house_interior.vox').then((scene: VoxelScene) => {
     // this.loader.loadUrl('vox/multiple.vox').then((scene: VoxelScene) => {
+    // this.loader.loadUrl('vox/3x3x3.vox').then((scene: VoxelScene) => {
       this.scene = scene;
       this.sceneDidChange();
     });
@@ -223,7 +223,8 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
         // webglContextAttributes={{ preserveDrawingBuffer: true }}
       >
         <VoxelShader
-          models={this.state.models}
+          shapeHashes={this.state.shapeHashes}
+          packedTexture={this.state.packedTexture}
           colors={this.state.colors}
           materials={this.state.materials}
           tick={this.state.tick}

@@ -1,15 +1,14 @@
 import React from "react";
 import { Shaders, GLSL, Uniform, NearestCopy } from "gl-react";
 import NaiveVoxelPathTracer from '../../Shaders/NaiveVoxelPathTracer.glsl';
-import VoxelArt from '../../Data/Models/VoxelArt';
 import MaterialArray from "../../Data/Arrays/MaterialArray";
 import ndarray from 'ndarray';
-import { Vector3 } from "three";
+import { Vector3, Matrix4, Matrix3 } from "three";
 import EnhancedNode from "./EnhancedNode";
 import ColorArray from "../../Data/Arrays/ColorArray";
+import ShapeHash from "../../Data/Types/ShapeHash";
 
-// Always use one model for now.
-export const MAX_MODELS = 1;
+export const MAX_SHAPES = 64;
 
 interface VoxelShaderProps {
   eye: number[];
@@ -19,7 +18,8 @@ interface VoxelShaderProps {
   tick: number;
   maxTick: number;
   resolution: number[];
-  models: VoxelArt[];
+  shapeHashes: ShapeHash[];
+  packedTexture: ndarray;
   colors: ColorArray;
   materials: MaterialArray;
 }
@@ -30,20 +30,13 @@ const shaders = Shaders.create({
   }
 });
 
-const getModelHashes = function (models: VoxelArt[]): any[] {
-  const nullModel = new VoxelArt();
-  const modelHashes = [];
-  for (let i = 0; i < MAX_MODELS; ++i) {
-    const model = models && models[i] || nullModel;
-    const index = model === nullModel ? -1 : i;
-    modelHashes.push({
-      index,
-      pos: model.pos.toArray(),
-      size: model.size.toArray(),
-      textureSize: model.textureSize.toArray(),
-    });
-  }
-  return modelHashes;
+const nullShapeHash: ShapeHash = {
+  modelIndex: -1,
+  rotation: (new Matrix3()).toArray(),
+  translation: (new Vector3()).toArray(),
+  pos: (new Vector3()).toArray(),
+  size: (new Vector3()).toArray(),
+  byteOffset: 0
 };
 
 const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
@@ -54,11 +47,19 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
     projectionMatrixInverse,
     tick,
     maxTick,
-    models,
+    shapeHashes,
+    packedTexture,
     colors,
     materials,
     lightDir
   } = props;
+
+  const shapes: any[] = [];
+  for (let i = 0; i < MAX_SHAPES; ++i) {
+    const hash: ShapeHash = shapeHashes[i] || nullShapeHash;
+    shapes.push(hash);
+  }
+
   const uniforms: any = {
     eye,
     tick,
@@ -67,12 +68,17 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
     resolution,
     lightDir: lightDir.toArray(),
     projectionMatrixInverse,
-    models: getModelHashes(models),
+    shapes,
+    packedTextureSize: [packedTexture.shape[0], packedTexture.shape[1]],
+    packedTexture: packedTexture,
     colorTexture: colors.colorTexture,
     materialTexture: materials.materialTexture,
     previousFrameBuffer: Uniform.Backbuffer
   };
   const uniformsOptions: any = {
+    packedTexture: {
+      interpolation: 'nearest'
+    },
     colorTexture: {
       interpolation: 'nearest'
     },
@@ -83,14 +89,6 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
       interpolation: 'nearest'
     }
   };
-  for (let i = 0; i < MAX_MODELS; ++i) {
-    const model = models[i];
-    let texture = model ? model.texture : ndarray(new Uint8Array(4), [1, 1, 4]);
-    uniforms[`modelTexture${i}`] = texture;
-    uniformsOptions[`modelTexture${i}`] = {
-      interpolation: 'nearest'
-    };
-  }
   return (
     <NearestCopy>
       <EnhancedNode
