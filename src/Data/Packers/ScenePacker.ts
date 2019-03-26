@@ -2,7 +2,7 @@ import VoxelScene from "../Models/VoxelScene";
 import ndarray from "ndarray";
 import VoxelArt from "../Models/VoxelArt";
 import Obj from "../Models/Obj";
-import { Matrix4 } from "three";
+import { Matrix4, Vector3 } from "three";
 import ShapeHash from "../Types/ShapeHash"
 
 // iOS 12.1 (16B91) Simulator's max is 4096.
@@ -24,9 +24,25 @@ function getTextureWidth(scene: VoxelScene): number {
   return width;
 }
 
+function invertModelMatrix(modelMatrix: Matrix4): Matrix4 {
+  // Model = Translation * Rotation
+  // inverse(Model) = inverse(Rotation) * inverse(Translation)
+  // where inverse(Rotation) = transpose(Rotation) since it is orthogonal
+  // and where inverse(Translation) = Translation.
+  const invertedTranslationMatrix = (new Matrix4()).setPosition(new Vector3(
+    - modelMatrix.elements[12],
+    - modelMatrix.elements[13],
+    - modelMatrix.elements[14]
+  ));
+  const invertedRotationMatrix = (new Matrix4()).extractRotation(modelMatrix).transpose();
+  const invertedModelMatrix = (new Matrix4()).multiplyMatrices(invertedRotationMatrix, invertedTranslationMatrix);
+  return invertedModelMatrix;
+}
+
 function getShapeHashes(obj: Obj, models: VoxelArt[], byteOffsets: number[], parentTransform: Matrix4 = new Matrix4()): ShapeHash[] {
   const { modelIndex, hidden } = obj;
-  const transform: Matrix4 = obj.transform.multiply(parentTransform);
+  const modelMatrix: Matrix4 = parentTransform.clone().multiply(obj.transform);
+  const invertedModelMatrix: Matrix4 = invertModelMatrix(modelMatrix);
   const shapeHashes: ShapeHash[] = [];
   if (!hidden) {
     if (modelIndex !== -1) {
@@ -36,7 +52,8 @@ function getShapeHashes(obj: Obj, models: VoxelArt[], byteOffsets: number[], par
       const byteOffset = byteOffsets[modelIndex];
       shapeHashes.push({
         modelIndex,
-        transform: transform.toArray(),
+        modelMatrix: modelMatrix.toArray(),
+        invertedModelMatrix: invertedModelMatrix.toArray(),
         size,
         pos,
         byteOffset
@@ -44,7 +61,7 @@ function getShapeHashes(obj: Obj, models: VoxelArt[], byteOffsets: number[], par
     }
     if (obj.children) {
       obj.children.forEach((childObj) => {
-        shapeHashes.push(...getShapeHashes(childObj, models, byteOffsets, transform));
+        shapeHashes.push(...getShapeHashes(childObj, models, byteOffsets, modelMatrix));
       })
     }
   }

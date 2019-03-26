@@ -35,6 +35,7 @@ magicaVoxelToOpenGlCoordinates.set(
   0, 0, 0, 1
 );
 
+
 export default class MagicaVoxelContext extends Context {
 
   public parseScene(buffer: ArrayBuffer): VoxelScene {
@@ -99,7 +100,13 @@ export default class MagicaVoxelContext extends Context {
   private parseNtrnChunk(ntrnChunk: NtrnChunk, chunkMap: NodeChunkMap): Obj {
     const childChunk: Chunk = chunkMap[ntrnChunk.childNodeId];
     const name: string = ntrnChunk.name;
-    const transform: Matrix4 = ntrnChunk.transform;
+    // Change of basis
+    const transform: Matrix4 = magicaVoxelToOpenGlCoordinates.clone()
+      .multiply(ntrnChunk.transform)
+      .multiply(magicaVoxelToOpenGlCoordinates.clone().transpose());
+
+    console.log(transform);
+
     const hidden: boolean = ntrnChunk.hidden;
     let modelIndex: number = -1;
     let children: Obj[] | undefined;
@@ -127,9 +134,9 @@ export default class MagicaVoxelContext extends Context {
     size.z = -size.z;
     // pivot location
     const pos = new Vector3(
-      0,
-      0,
-      -size.z,
+      -Math.floor(size.x / 2),
+      -Math.floor(size.y / 2),
+      Math.floor(-size.z / 2),
     );
     const model = new VoxelArt(pos, size);
     const { xyzis } = xyziChunk;

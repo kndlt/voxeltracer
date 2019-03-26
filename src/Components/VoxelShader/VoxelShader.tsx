@@ -32,7 +32,8 @@ const shaders = Shaders.create({
 
 const nullShapeHash: ShapeHash = {
   modelIndex: -1,
-  transform: (new Matrix4()).toArray(),
+  modelMatrix: (new Matrix4()).toArray(),
+  invertedModelMatrix: (new Matrix4()).toArray(),
   pos: [0, 0, 0],
   size: [0, 0, 0],
   byteOffset: 0

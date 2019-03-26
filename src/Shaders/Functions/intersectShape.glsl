@@ -14,13 +14,16 @@ const Hit miss = Hit(false, 0.0, vec3(0.0), vec3(0.0), 0);
  * Intersect shape
  */
 Hit intersectShape(Ray ray, Shape shape, int mediumIndex) {
-  mat4 transform = shape.transform;
+  mat4 invertedModelMatrix = shape.invertedModelMatrix;
   vec3 boxMin = vec3(shape.pos);
   vec3 boxMax = vec3(shape.pos + shape.size);
 
+  // Keep original ray
+  Ray originalRay = ray;
+
   // Transform ray.
-  ray.dir = (transform * vec4(ray.dir, 0.0)).xyz;
-  ray.origin = (transform * vec4(ray.origin, 1.0)).xyz;
+  ray.dir = (invertedModelMatrix * vec4(ray.dir, 0.0)).xyz;
+  ray.origin = (invertedModelMatrix * vec4(ray.origin, 1.0)).xyz;
 
   // Intersect BB
   vec2 tBox = intersectBoundingBox(ray, boxMin, boxMax);
@@ -57,7 +60,7 @@ Hit intersectShape(Ray ray, Shape shape, int mediumIndex) {
   ivec3 cellIndex = ivec3(floor(toOrigin));
 
   // Normal
-  vec3 hitNormal;
+  vec3 normal;
 
   // Hit T
   float hitT = 0.0;
@@ -70,17 +73,17 @@ Hit intersectShape(Ray ray, Shape shape, int mediumIndex) {
     if (tSet.x == minT) {
         tSet.x += deltaT.x;
         cellIndex.x += int(sign(ray.dir.x));
-        hitNormal = vec3(-sign(ray.dir.x), 0.0, 0.0);
+        normal = vec3(-sign(ray.dir.x), 0.0, 0.0);
     }
     else if (tSet.y == minT) {
         tSet.y += deltaT.y;
         cellIndex.y += int(sign(ray.dir.y));
-        hitNormal = vec3(0.0, -sign(ray.dir.y), 0.0);
+        normal = vec3(0.0, -sign(ray.dir.y), 0.0);
     }
     else {
         tSet.z += deltaT.z;
         cellIndex.z += int(sign(ray.dir.z));
-        hitNormal = vec3(0.0, 0.0, -sign(ray.dir.z));
+        normal = vec3(0.0, 0.0, -sign(ray.dir.z));
     }
 
     // If some condition is met break from the loop (allow one extra padding)
@@ -99,7 +102,8 @@ Hit intersectShape(Ray ray, Shape shape, int mediumIndex) {
         vec3 voxMax = voxMin + 1.0;
         vec2 tVox = intersectBoundingBox(ray, voxMin, voxMax);
         float hitT = tVox.x;
-        vec3 hitPos = ray.origin + ray.dir * hitT;
+        vec3 hitPos = originalRay.origin + originalRay.dir * hitT;
+        vec3 hitNormal = (shape.modelMatrix * vec4(normal, 0.0)).xyz;
         return Hit(true, hitT, hitPos, hitNormal, materialIndex);
       }
     }
