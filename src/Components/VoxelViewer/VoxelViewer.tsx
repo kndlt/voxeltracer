@@ -50,9 +50,13 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   constructor(props: VoxelViewerProps) {
     super(props);
     // this.scene = new Scene();
-    this.camera = new PerspectiveCamera(60, 1, 0.01, 1000);
+    const viewportSize = new Vector2(window.innerWidth, window.innerHeight);
+    this.camera = new PerspectiveCamera(60,
+      (viewportSize.y > 0 ? viewportSize.x / viewportSize.y : 1)
+      , 0.01, 1000);
     this.camera.position.set(0, 50, 100);
     this.camera.lookAt(new Vector3(0, 30, 0));
+    this.camera.updateProjectionMatrix();
 
     this.loader = new Loader();
     this.scene = new VoxelScene();
@@ -62,7 +66,6 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     const lightDir = new Vector3(-1.1, 1.9, 1.7);
     lightDir.normalize();
 
-    const viewportSize = new Vector2(512, 512);
     this.state = {
       shapeHashes: [],
       packedTexture: dummyPackedTexture,
@@ -125,8 +128,13 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   cameraDidUpdate() {
     // TODO: Figure out why this is needed.
     // Ideally, this should have been handled by the Orbit controlls.
-    this.camera.lookAt(new Vector3(0, 0, 0));
+    // this.camera.lookAt(new Vector3(0, 0, 0));
     // this.camera.lookAt(new Vector3(0, 25, 0));
+    if (this.orbitControls) {
+      this.camera.lookAt(this.orbitControls.target);
+    }
+
+    this.camera.updateProjectionMatrix();
 
     this.setState({
       tick: 0,
@@ -139,6 +147,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
   componentDidMount() {
     const orbitControls: OrbitControls = this.orbitControls = new OrbitControls(this.camera);
+    orbitControls.target = new Vector3(0, 30, 0);
     orbitControls.addEventListener('change', this.didOrbit);
 
     // Load deafult model.
@@ -203,7 +212,17 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
   onWindowResize = () => {
     console.log('window resize');
-    this.restartAnimation();
+    const viewportSize = new Vector2(window.innerWidth, window.innerHeight);
+
+    if (viewportSize.x > 0 && viewportSize.y > 0) {
+      this.camera.aspect = viewportSize.x / viewportSize.y;
+    }
+    else {
+      this.camera.aspect = 1.0;
+    }
+
+    this.setState({ viewportSize });
+    this.cameraDidUpdate();
   }
 
   render() {
