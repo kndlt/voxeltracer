@@ -18,7 +18,9 @@ const OrbitControls = require('three-orbit-controls')(THREE);
 
 interface OrbitControls extends THREE.OrbitControls {}
 
-interface VoxelViewerProps { }
+interface VoxelViewerProps {
+  url: string
+}
 
 interface VoxelViewerState {
   tick: number;
@@ -45,6 +47,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   private orbitControls?: OrbitControls;
   private loader: Loader;
   private pauseCount: number = 0;
+  private url: string;
 
 
   constructor(props: VoxelViewerProps) {
@@ -60,6 +63,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
     this.loader = new Loader();
     this.scene = new VoxelScene();
+    this.url = props.url;
 
     window.addEventListener('resize', this.onWindowResize);
 
@@ -150,12 +154,8 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     orbitControls.target = new Vector3(0, 30, 0);
     orbitControls.addEventListener('change', this.didOrbit);
 
-    // Load deafult model.
-    // this.loader.loadUrl('vox/test_matl.vox').then((scene: VoxelScene) => {
-    this.loader.loadUrl('vox/pink_mini_store.vox').then((scene: VoxelScene) => {
-    // this.loader.loadUrl('vox/japanese_house_interior.vox').then((scene: VoxelScene) => {
-    // this.loader.loadUrl('vox/multiple.vox').then((scene: VoxelScene) => {
-    // this.loader.loadUrl('vox/3x3x3.vox').then((scene: VoxelScene) => {
+    // Load model.
+    this.loader.loadUrl(this.url).then((scene: VoxelScene) => {
       this.scene = scene;
       this.sceneDidChange();
     });
@@ -272,4 +272,6 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   }
 }
 
-export default ReactTimeout(ReactAnimationFrame(VoxelViewer));
+// Rest for at least 50ms. This should prevent the webpage 
+// from solely consuming all the gpu powers.
+export default ReactTimeout<VoxelViewerProps>(ReactAnimationFrame(VoxelViewer, 80));
