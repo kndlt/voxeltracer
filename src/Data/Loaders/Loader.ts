@@ -62,9 +62,12 @@ export default class Loader {
   }
 
   public async loadUrl(url: string): Promise<VoxelScene> {
-    const request = new Request(url, {
-      headers: new Headers({'Content-Type': 'application/octet-stream'})
-    });
+    const request = new Request(url);
+    
+    // , {
+      // Probably not needed. Removing.
+      // headers: new Headers({'Content-Type': 'application/octet-stream'})
+    // });
 
     const response = await fetch(request);
   
