@@ -13,13 +13,16 @@ import ScenePacker from "../../Data/Packers/ScenePacker";
 import ndarray from "ndarray";
 import ShapeHash from "../../Data/Types/ShapeHash";
 
-const MAX_TICK = 1024;
+const MAX_TICK = 512;
 const OrbitControls = require('three-orbit-controls')(THREE);
 
 interface OrbitControls extends THREE.OrbitControls {}
 
 interface VoxelViewerProps extends React.HTMLAttributes<HTMLDivElement> {
-  src: string | File
+  src: string | File;
+  devicePixelRatio?: number;
+  onRendered?: () => void;
+  maxSteps?: number;
 }
 
 interface VoxelViewerState {
@@ -209,8 +212,9 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     else if (tick % 10 === 0) {
       console.log(`Rendering: ${tick}/${MAX_TICK}.`);
     }
-    if (tick > MAX_TICK) {
+    if (tick > MAX_TICK || this.props.maxSteps !== undefined && tick > this.props.maxSteps) {
       console.log('Render completed.');
+      if (this.props.onRendered) this.props.onRendered();
       this.endAnimation();
     }
   }
@@ -242,6 +246,26 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     this.cameraDidUpdate();
   }
 
+  async takeSnapshot(): Promise<null | Blob> {
+    return new Promise((resolve) => {
+      console.log("!!takeSnapshot")
+      const container = this.containerRef.current;
+      if (!container) {
+        resolve(null);
+        return;
+      }
+      const canvas = container.querySelector("canvas");
+      if (!canvas) {
+        resolve(null);
+        return;
+      }
+      function handleBlob(blob: Blob | null) {
+        resolve(blob);
+      }
+      canvas.toBlob(handleBlob, "image/jpeg", 0.95);
+    });
+  }
+  
   render() {
     // const eye: Vector3 = this.camera.position;
     // const viewMatrixInverse: Matrix4 = this.camera.viewMatrixInverse;
@@ -249,7 +273,9 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     // const projectionMatrixInverse: Matrix4 = this.camera.projectionMatrixInverse;
 
     // Render with minimum pixel ratio of 2.
-    const pixelRatio = typeof window !== "undefined" && window.devicePixelRatio || 1;
+    const pixelRatio = this.props.devicePixelRatio !== undefined ? this.props.devicePixelRatio : typeof window !== "undefined" && window.devicePixelRatio || 1;
+    // Fix it to 2.
+    // const pixelRatio = 2;
     const { viewportSize } = this.state;
     const resolution = [
       pixelRatio * viewportSize.x,
@@ -266,7 +292,9 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
           height={viewportSize.y}
           pixelRatio={pixelRatio}
           onContextRestored={this.onContextRestored}
-          // webglContextAttributes={{ preserveDrawingBuffer: true }}
+          // Needed for snapshoting. There are alternative approaches worth looking at though.
+          // Ref: https://webglfundamentals.org/webgl/lessons/webgl-tips.html
+          webglContextAttributes={{ preserveDrawingBuffer: true }}
         >
           <VoxelShader
             shapeHashes={this.state.shapeHashes}
