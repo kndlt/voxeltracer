@@ -1,6 +1,6 @@
 import React from "react";
 import * as THREE from 'three';
-import { PerspectiveCamera, Vector3, Vector2, Color } from "three";
+import { PerspectiveCamera, Vector3, Vector2, Color, OrthographicCamera, Camera } from "three";
 import { Surface } from "gl-react-dom";
 import VoxelShader from '../VoxelShader/VoxelShader';
 import ReactAnimationFrame from 'react-animation-frame';
@@ -23,6 +23,8 @@ interface VoxelViewerProps extends React.HTMLAttributes<HTMLDivElement> {
   devicePixelRatio?: number;
   onRendered?: () => void;
   maxSteps?: number;
+  orthographic?: boolean;
+  // camera?: PerspectiveCamera | OrthographicCamera;
 }
 
 interface VoxelViewerState {
@@ -46,12 +48,14 @@ const dummyPackedTexture: ndarray = ndarray(new Uint8Array(4), [1, 1, 4]);
 class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   // scene: Scene;
   private scene: VoxelScene;
-  private camera: PerspectiveCamera;
+  private camera: PerspectiveCamera | OrthographicCamera;
   private orbitControls?: OrbitControls;
   private loader: Loader;
   private pauseCount: number = 0;
   private src: string | File;
   private containerRef: React.RefObject<HTMLDivElement>;
+
+  private orthographicCameraHeight = 30;
 
   constructor(props: VoxelViewerProps) {
     super(props);
@@ -61,15 +65,34 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     this.scene = new VoxelScene();
     // Initial dummy value.
     const viewportSize = new Vector2(512, 512);
-    this.camera = new PerspectiveCamera(
-      60,
-      (viewportSize.y > 0 ? viewportSize.x / viewportSize.y : 1), 
-      0.01, 
-      1000
-    );
-    this.camera.position.set(0, 50, 100);
-    this.camera.lookAt(new Vector3(0, 30, 0));
-    this.camera.updateProjectionMatrix();
+    const aspect = viewportSize.x / viewportSize.y;
+    if (props.orthographic) {
+      // Ref: http://jsfiddle.net/ne8taqmz/11/
+      const d = 30;
+      this.camera = new OrthographicCamera(
+        - this.orthographicCameraHeight * aspect, 
+        this.orthographicCameraHeight * aspect, 
+        this.orthographicCameraHeight, 
+        - this.orthographicCameraHeight, 
+        1, 
+        1000 
+      );
+      this.camera.position.set( 20, 20, 20 );
+      this.camera.rotation.order = 'YXZ';
+      this.camera.rotation.y = - Math.PI / 4;
+      this.camera.rotation.x = Math.atan( - 1 / Math.sqrt( 2 ) );
+    } else {
+      this.camera = new PerspectiveCamera(
+        45,
+        aspect, 
+        0.01, 
+        1000
+      );
+      this.camera.position.set(0, 50, 100);
+      this.camera.lookAt(new Vector3(0, 30, 0));
+      this.camera.updateProjectionMatrix();  
+    }
+    
     const lightDir = new Vector3(-1.1, 1.9, 1.7);
     lightDir.normalize();
     this.state = {
@@ -233,15 +256,19 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
     console.log('window resize');
     const containerEl = this.containerRef.current!;
     const viewportSize = new Vector2(containerEl.clientWidth, containerEl.clientHeight);
+    const aspect = viewportSize.x / viewportSize.y || 1;
 
-
-    if (viewportSize.x > 0 && viewportSize.y > 0) {
-      this.camera.aspect = viewportSize.x / viewportSize.y;
+    if (this.camera.type === "PerspectiveCamera") {
+      this.camera.aspect = aspect;
+    } else if (this.camera.type === "OrthographicCamera") {
+        // Ref: http://jsfiddle.net/ne8taqmz/11/
+        const d = 30;
+        this.camera.left = -this.orthographicCameraHeight * aspect, 
+        this.camera.right = this.orthographicCameraHeight * aspect, 
+        this.camera.top = this.orthographicCameraHeight;
+        this.camera.bottom = -this.orthographicCameraHeight;
     }
-    else {
-      this.camera.aspect = 1.0;
-    }
-
+    
     this.setState({ viewportSize });
     this.cameraDidUpdate();
   }
