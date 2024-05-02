@@ -1,6 +1,7 @@
 import React from "react";
-import { Shaders, GLSL, Uniform, NearestCopy } from "gl-react";
+import { Shaders, GLSL, Uniform, NearestCopy, Node } from "gl-react";
 import NaiveVoxelPathTracer from '../../Shaders/NaiveVoxelPathTracer.glsl';
+import sampleShader from '../../Shaders/sampleShader.glsl';
 import MaterialArray from "../../Data/Arrays/MaterialArray";
 import ndarray from 'ndarray';
 import { Vector3, Matrix4, Matrix3, Color } from "three";
@@ -30,6 +31,9 @@ interface VoxelShaderProps {
 const shaders = Shaders.create({
   vt01: {
     frag: GLSL`${NaiveVoxelPathTracer}`
+  },
+  sampleShader: {
+    frag: GLSL`${sampleShader}`
   }
 });
 
@@ -65,6 +69,8 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
     const hash: ShapeHash = shapeHashes[i] || nullShapeHash;
     shapes.push(hash);
   }
+  
+  // console.log("VoxelShader", props);
 
   const uniforms: any = {
     eye,
@@ -98,6 +104,11 @@ const VoxelShader: React.SFC<VoxelShaderProps> = (props) => {
       interpolation: 'nearest'
     }
   };
+  // return (
+  //   <NearestCopy>
+  //     <Node shader={shaders.sampleShader}></Node>
+  //   </NearestCopy>
+  // );
   return (
     <NearestCopy>
       <EnhancedNode

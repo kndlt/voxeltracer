@@ -55,6 +55,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
 
   constructor(props: VoxelViewerProps) {
     super(props);
+    console.log("VoxelViewer constructor")
     this.containerRef = React.createRef<HTMLDivElement>();
     this.src = props.src;
     this.loader = new Loader();
@@ -91,6 +92,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   }
 
   sceneDidChange(): void {
+    console.log("VoxelViewer sceneDidChange")
     const scenePacker = new ScenePacker();
     const [shapeHashes, packedTexture] = scenePacker.pack(this.scene);
     this.setState({
@@ -108,6 +110,7 @@ class VoxelViewer extends React.Component<VoxelViewerProps, VoxelViewerState> {
   }
 
   startAnimation(): void {
+    console.log("VoxelViewer startAnimation");
     (this.props as any).startAnimation();
   }
 
