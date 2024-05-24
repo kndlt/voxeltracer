@@ -27,7 +27,11 @@ export default class Loader {
     let scene: VoxelScene | null = null;
     for (let i = 0; i < contexts.length; ++i) {
       const context = contexts[i];
-      scene = context.parseScene(buffer);
+      try {
+        scene = context.parseScene(buffer);
+      } catch (e) {
+        alert("Error parsing file: " + e + " Trying next context.");
+      }
       if (scene) {
         break;
       }
@@ -46,7 +50,14 @@ export default class Loader {
       const fileReader = new FileReader();
       fileReader.onload = function(e) {
         const buffer = fileReader.result as ArrayBuffer;
-        resolve(self.loadBuffer(buffer));
+        let result: VoxelScene | null = null;
+        try {
+          result = self.loadBuffer(buffer);
+        } catch (e) {
+          alert(e);
+          return;
+        }
+        resolve(result);
       }
       fileReader.readAsArrayBuffer(file);
     });
