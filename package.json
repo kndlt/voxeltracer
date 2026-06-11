@@ -1,11 +1,21 @@
 {
-  "name": "voxelviewer",
-  "version": "0.2.0",
-  "private": true,
+  "name": "voxeltracer",
+  "version": "1.0.0",
+  "description": "MagicaVoxel path tracer for the web (WebGL2). Framework-agnostic library + demo app.",
   "type": "module",
-  "main": "dist/voxelviewer.umd.cjs",
-  "module": "dist/voxelviewer.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/voxeltracer.umd.cjs",
+  "module": "./dist/voxeltracer.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/voxeltracer.js",
+      "require": "./dist/voxeltracer.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "repository": "git+https://github.com/kndlt/voxelviewer.git",
   "keywords": [],
   "author": "kndlt <kndlt22@gmail.com>",
