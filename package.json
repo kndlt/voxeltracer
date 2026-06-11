@@ -1,6 +1,9 @@
 {
-  "name": "voxeltracer",
+  "name": "@sprited/voxeltracer",
   "version": "1.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "MagicaVoxel path tracer for the web (WebGL2). Framework-agnostic library + demo app.",
   "type": "module",
   "main": "./dist/voxeltracer.umd.cjs",

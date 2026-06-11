@@ -28,8 +28,12 @@ Demo: https://kndlt.github.io/voxeltracer — press `` ` `` (backtick) for the d
 
 ### npm (ESM)
 
+```sh
+npm install @sprited/voxeltracer
+```
+
 ```ts
-import { createVoxelTracer } from 'voxeltracer';
+import { createVoxelTracer } from '@sprited/voxeltracer';
 
 const tracer = createVoxelTracer({
   container: document.getElementById('app')!,
