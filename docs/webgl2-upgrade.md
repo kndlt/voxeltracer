@@ -246,3 +246,133 @@ step. Choose Path B unless keeping gl-react's declarative API is valued enough t
 pay the React 18 + gl-react 6 migration with unknown API diff — the code we'd
 write for Path B is code this project already conceptually owns (the Proxy hack
 proves gl-react's abstraction was being fought, not used).
+
+## 7. Appendix: what about WebGPU?
+
+*Added 2026-06-11, after the WebGL2 migration landed on `jin/webgl2-modernize`.*
+
+Short version: WebGL2 was the right move for now; WebGPU is a worthwhile
+*second backend* later, paired with a real algorithmic upgrade (BVH /
+wavefront path tracing), not as a port of the current kernel.
+
+### Pros
+
+- **Compute shaders.** The path tracer stops being a fullscreen-fragment hack.
+  Compute gives workgroup shared memory and explicit dispatch — the
+  prerequisites for wavefront path tracing, BVH traversal with local stacks,
+  and ray compaction between bounces. This is where the next 10× lives once
+  scenes get big (the 16-shape generated terrain drops to ~5fps because every
+  ray linearly tests every shape; a BVH in compute fixes the asymptotics).
+- **Storage buffers.** Shapes and even voxel bricks become plain structured
+  buffers — the RGBA32F shape-texture encoding and 16×16 palette textures
+  disappear as a concept. No more encoding data as pixels at all.
+- **Denoiser-friendly.** Compute + read-write storage textures make an
+  SVGF-style denoiser (the thing that would cut the 1000-tick budget to ~50)
+  far more natural than ping-ponging fragment passes.
+- **Lower driver overhead, explicit pipelines, GPU timestamps** for honest
+  profiling.
+- **three.js alignment.** three's WebGPURenderer/TSL is where that ecosystem
+  is investing.
+
+### Cons
+
+- **Coverage (2026).** WebGPU is in Chrome/Edge (2023), Safari 26 (late
+  2025), Firefox (rolling out since 141). Real-world coverage is roughly
+  70–85% and uneven on Android/older devices — versus effectively-universal
+  WebGL2. For a library meant to be embedded anywhere, that gap still matters
+  in 2026.
+- **Full kernel rewrite.** WGSL is a different language; nothing about this
+  port is mechanical. The DDA walk, material system, and RNG all get
+  rewritten and re-verified against goldens.
+- **New plumbing.** Either adopt three's WebGPURenderer (different material/
+  pass abstractions than our RawShaderMaterial setup) or go raw WebGPU and
+  own swapchain/binding management. Both are real projects.
+- **Younger tooling.** Debugging, profiling, and reference material for WebGPU
+  path tracing are thinner than a decade of WebGL lore.
+- **Marginal gain for the current kernel.** Ported as-is (one fragment thread
+  per pixel, linear shape loop), WebGPU renders at roughly the same speed.
+  The win only materializes with the algorithmic rewrite (BVH, wavefront,
+  denoising) that compute enables.
+
+### Recommendation
+
+Keep WebGL2 as the only backend until scene scale or denoising actually
+demands more. When that day comes, add WebGPU as a second renderer behind the
+same `createVoxelTracer()` API — the data layer (parser, atlas packer, scene
+model) is already renderer-agnostic, so the seam is exactly `VoxelRenderer`.
+Pair the WebGPU backend with the BVH/wavefront rewrite so the port pays for
+itself.
+
+## 8. Appendix: what would importance sampling buy us?
+
+*Added 2026-06-11. Grounded in the current kernel
+(`src/Renderer/shaders/pathTracer.frag`).*
+
+### Where the sampler stands today
+
+- **Diffuse bounces are already importance sampled** —
+  `cosineWeightedDirection()` matches the Lambertian BRDF's cosine pdf. No
+  free win left there.
+- **The sun is directly sampled** — every hit casts one shadow ray toward the
+  (jittered) directional light. This is ad-hoc next-event estimation for one
+  light, and it's why the sample scenes converge as fast as they do.
+- **Glass picks reflection vs. refraction by Fresnel probability** — also
+  already a form of importance sampling.
+- **The gaps:** emissive voxels are found only by *accident* (a cosine bounce
+  has to stumble into them); metal bounces perturb the mirror direction with a
+  uniform sphere offset that has no pdf bookkeeping (roughness is "vibes", not
+  a lobe); paths always terminate at 2 bounces; and the RNG is plain white
+  noise.
+
+### Ranked by payoff
+
+1. **Next-event estimation for emissive voxels (the big one).** Collect
+   emissive voxels into a light list at scene-build time (the data layer
+   already knows material types when packing the atlas), then at every hit
+   sample a point on that list and connect with a shadow ray, weighted by
+   solid angle. Small and medium emitters — neon signs, lamps, windows —
+   currently converge 10–100× slower than everything else in the frame; this
+   is exactly the content voxel art is full of. `emit.vox` only looks fine
+   because its emitter is a giant cube filling the view.
+2. **Multiple importance sampling (balance heuristic) over BRDF + light
+   samples.** Once there are two strategies (cosine bounce, light sample),
+   combining them naively double-counts or wastes samples. MIS makes the
+   estimator robust for both big lights (BRDF sampling wins) and small lights
+   (light sampling wins), and cleans up glossy metal reflecting an emitter —
+   the classic MIS failure case the current shader can't handle at all.
+3. **A real specular lobe for metal.** Replace `reflect + uniform offset ×
+   roughness` with GGX (or even Phong-lobe) sampling and its pdf. Rough metals
+   stop being disproportionately noisy, and roughness becomes physically
+   meaningful instead of a fudge factor.
+4. **Low-discrepancy sampling.** Not importance sampling proper, but the same
+   family of win: replace per-pixel white noise with a scrambled
+   Halton/Sobol or blue-noise sequence (stratification currently exists only
+   in the 7×7 sub-pixel AA jitter). Same images, visibly smoother at equal
+   tick counts, ~1 day of work.
+5. **Russian roulette.** Probabilistic termination instead of the fixed
+   2-bounce cap — unbiased deeper bounces where they matter (glass, bright
+   interiors) without paying for them everywhere.
+
+### Costs and cautions
+
+- NEE needs **light-list plumbing**: a per-scene buffer/texture of emissive
+  voxel positions+flux, built alongside `SceneTextures`. Modest data-layer
+  work, fits the existing texture-encoded pattern (or a storage buffer under a
+  future WebGPU backend, see §7).
+- The current shading accumulation is **not a clean rendering-equation
+  estimator** (e.g. metal's double-diffuse quirk kept for golden parity, the
+  `lightColor * 2.0` calibration). Proper MIS bookkeeping will *change the
+  look*, not just the noise. Gate it behind a quality flag and re-baseline the
+  goldens deliberately rather than chasing pixel parity.
+- Rough effort: emissive NEE + MIS ≈ 3–5 days including light-list plumbing;
+  GGX metal ≈ 1–2 days; low-discrepancy sampling ≈ 1 day; Russian roulette ≈
+  half a day.
+
+### Verdict
+
+If the roadmap includes emissive-heavy voxel art (signs, lamps, interiors —
+likely for Sprited-style content), emissive NEE + MIS is the highest
+value-per-effort rendering improvement available — bigger than any further
+data-path micro-optimization, and independent of the WebGPU question. The
+low-discrepancy swap is the cheap appetizer that helps every scene
+immediately.

@@ -80,6 +80,20 @@ describe('MagicaVoxelContext.parseScene', () => {
     expect(tex.get(5, 0, 3)).toBe(Math.round(0.5 * 255));
   });
 
+  it('parses legacy files without a scene graph (models at origin)', () => {
+    const bytes = buildVox({
+      models: [
+        { size: [2, 2, 2], voxels: [[0, 0, 0, 1]] },
+        { size: [2, 2, 2], voxels: [[1, 1, 1, 2]] },
+      ],
+      sceneGraph: false,
+    });
+    const scene = parse(bytes);
+    expect(scene.models).toHaveLength(2);
+    expect(scene.rootObj.children).toHaveLength(2);
+    expect(scene.rootObj.children!.map((c) => c.modelIndex)).toEqual([0, 1]);
+  });
+
   it('rejects non-vox bytes', () => {
     expect(() => parse(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))).toThrow();
   });

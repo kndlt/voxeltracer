@@ -8,6 +8,7 @@ export interface BuildVoxOptions {
   translations?: Array<[number, number, number] | undefined>;
   palette?: Array<[number, number, number, number]>;
   materials?: Array<[number, Record<string, string>]>;
+  sceneGraph?: boolean;
 }
 
 export function chunk(id: string, content?: Uint8Array, children?: Uint8Array): Uint8Array;

@@ -89,20 +89,22 @@ export function matlChunk(materialId, dictObj) {
  * palette:      optional array of [r, g, b, a] (entry i = palette index i + 1)
  * materials:    optional array of [materialId, dictObj]
  *
- * A scene graph (root nTRN -> nGRP -> per-model nTRN -> nSHP) is always
- * emitted because the parser requires one.
+ * sceneGraph:   pass false to emit a legacy (MagicaVoxel < 0.99) file with
+ *               no node hierarchy.
  */
-export function buildVox({ models, translations, palette, materials }) {
+export function buildVox({ models, translations, palette, materials, sceneGraph = true }) {
   const parts = [];
   models.forEach((m) => {
     parts.push(sizeChunk(...m.size), xyziChunk(m.voxels));
   });
-  const groupChildIds = models.map((_, i) => 2 + i * 2);
-  parts.push(ntrnChunk(0, 1), ngrpChunk(1, groupChildIds));
-  models.forEach((_, i) => {
-    const t = translations && translations[i];
-    parts.push(ntrnChunk(2 + i * 2, 3 + i * 2, { translation: t }), nshpChunk(3 + i * 2, i));
-  });
+  if (sceneGraph) {
+    const groupChildIds = models.map((_, i) => 2 + i * 2);
+    parts.push(ntrnChunk(0, 1), ngrpChunk(1, groupChildIds));
+    models.forEach((_, i) => {
+      const t = translations && translations[i];
+      parts.push(ntrnChunk(2 + i * 2, 3 + i * 2, { translation: t }), nshpChunk(3 + i * 2, i));
+    });
+  }
   if (palette) parts.push(rgbaChunk(palette));
   if (materials) {
     for (const [id, d] of materials) parts.push(matlChunk(id, d));

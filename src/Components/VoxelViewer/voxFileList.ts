@@ -1,4 +1,9 @@
 export const availableVoxelFiles = [
+  'vox/web/alien_saucer1a.vox',
+  'vox/web/alien_bot1.vox',
+  'vox/web/alien_infected1.vox',
+  'vox/web/alien_engi1a.vox',
+  'vox/web/chr_army1.vox',
   'vox/generated/sphere_256.vox',
   'vox/generated/terrain_4x4.vox',
   'vox/generated/many_models_100.vox',
