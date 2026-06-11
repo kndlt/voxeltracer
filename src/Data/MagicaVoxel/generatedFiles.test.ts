@@ -28,6 +28,20 @@ describe('generated stress files', () => {
     expect(volume).toBeGreaterThan(4096 * 4096 * 4);
   });
 
+  it('ministore_2x2.vox: one model instanced by four shapes', () => {
+    const scene = parseFile('ministore_2x2.vox');
+    expect(scene.models).toHaveLength(1);
+    expect(scene.rootObj.children).toHaveLength(4);
+    // all four instances reference the same model
+    expect(scene.rootObj.children!.map((c) => c.modelIndex)).toEqual([0, 0, 0, 0]);
+    // distinct grid translations
+    const translations = scene.rootObj.children!.map((c) => {
+      const e = c.transform.elements;
+      return `${e[12]},${e[13]},${e[14]}`;
+    });
+    expect(new Set(translations).size).toBe(4);
+  });
+
   it('many_models_100.vox: 100 shapes', () => {
     const scene = parseFile('many_models_100.vox');
     expect(scene.models).toHaveLength(100);
