@@ -15,6 +15,11 @@ export const MAX_TICK = 1000;
 export interface VoxelRendererOptions {
   /** Stop accumulating after this many ticks (default 1000). */
   maxTick?: number;
+  /**
+   * Throttle the trace loop so the page doesn't monopolize the GPU.
+   * Infinity (default) = one tick per animation frame; 0 = paused.
+   */
+  ticksPerSecond?: number;
   /** Called every 10 ticks and on completion. */
   onTick?: (tick: number, msElapsed: number) => void;
   onRendered?: () => void;
@@ -60,9 +65,13 @@ export class VoxelRenderer {
   private sceneTextures: SceneTextures | null = null;
   private hasScene = false;
   private options: VoxelRendererOptions;
+  private lastTickAt = 0;
+  /** Trace ticks per second; Infinity = every frame, 0 = paused. */
+  ticksPerSecond: number;
 
   constructor(canvas: HTMLCanvasElement, options: VoxelRendererOptions = {}) {
     this.options = options;
+    this.ticksPerSecond = options.ticksPerSecond ?? Infinity;
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       // needed for canvas.toBlob() captures
@@ -178,7 +187,11 @@ export class VoxelRenderer {
     this.running = true;
     const loop = () => {
       if (!this.running) return;
-      this.renderFrame();
+      const now = performance.now();
+      if (now - this.lastTickAt >= 1000 / this.ticksPerSecond) {
+        this.lastTickAt = now;
+        this.renderFrame();
+      }
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);

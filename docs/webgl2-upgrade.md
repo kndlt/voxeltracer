@@ -376,3 +376,85 @@ value-per-effort rendering improvement available — bigger than any further
 data-path micro-optimization, and independent of the WebGPU question. The
 low-discrepancy swap is the cheap appetizer that helps every scene
 immediately.
+
+## 9. Appendix: measured shape-count scaling (2026-06-11)
+
+Instancing stress on the WebGL2 renderer (one mini-store model, N `nSHP`
+instances via `scripts/remix-vox.mjs`; ~1450×850 canvas, Apple Silicon,
+trace ticks per second):
+
+| instances | tps |
+|---|---|
+| 4 (2×2) | 60 (vsync-capped) |
+| 16 (4×4) | 52 |
+| 64 (8×8) | 18 |
+| 256 (16×16) | 8.5 |
+| 16 terrain tiles (256×256×96 each) | 5 |
+
+Interpretation: per-pixel cost is `O(shapeCount)` — `intersectShapes` AABB-
+tests every shape per ray segment (primary + shadow + bounces). The cliff
+between 16 and 64 shapes is exactly that linear term taking over. Fix is a
+shape-level BVH (or even a coarse uniform grid over shape AABBs); until then,
+~30 shapes is the comfortable budget for interactive scenes. See §7 — this is
+the workload a compute-backend BVH would transform.
+
+## 10. Appendix: thought experiment — mesh the voxels, then ray trace the mesh?
+
+Question: instead of DDA-walking voxel grids, what if we polygonize the
+voxels (greedy meshing → quads) and ray trace the triangles with a
+"real-time ray tracing" approach (BVH over triangles, à la three-mesh-bvh,
+or hardware RT down the road)?
+
+### What it would win
+
+- **Empty space costs nothing.** DDA pays per voxel cell crossed — a ray
+  skimming a 256³ model's empty corner still steps through hundreds of cells.
+  A triangle BVH pays per BVH node — log-ish in surface complexity, and
+  voxel scenes are mostly empty space. The terrain scene's 5 tps is partly
+  this.
+- **One acceleration structure for everything.** Shapes stop being a special
+  linear loop (§9's cliff disappears); instancing becomes BVH instancing
+  (TLAS/BLAS) — 256 mini-stores would be one BLAS + 256 transforms.
+- **Greedy meshing collapses flat voxel runs.** A 40×34 wall becomes ~2
+  triangles instead of 1,360 cell faces. Typical voxel art meshes to a few
+  thousand triangles — tiny by RT standards.
+- **Ecosystem leverage.** three-mesh-bvh (WebGL2, today) and WebGPU ray
+  queries (eventually) are well-trodden; hardware RT cores only ever apply
+  to triangles.
+- **Free rasterization fallback.** Once meshed, a plain rasterized preview
+  mode (instant, no accumulation) costs nothing extra to offer.
+
+### What it would lose
+
+- **The voxel grid IS the scene's spatial structure.** DDA needs zero build
+  time, zero extra memory, and is watertight by construction. Meshing + BVH
+  adds a build step on every scene load (and rebuild on edit — bad if voxel
+  *editing* is ever on the roadmap; the 3D-texture path just rewrites texels).
+- **Per-voxel material lookup gets harder.** Today `voxelAt()` returns the
+  material index directly from the hit cell. A meshed surface needs material
+  baked into vertex attributes or a texture lookup keyed by position — the
+  glass path (rays *continuing through* the medium, `mediumIndex` logic)
+  becomes genuinely awkward on hollow shells: interior faces between glass
+  and air must be emitted or refraction breaks.
+- **Secondary rays still need the full structure.** The win of meshing shows
+  on primary rays; bounce/shadow rays scatter incoherently where BVHs also
+  slow down. The current 2-bounce budget limits how much that matters, but a
+  triangle BVH in a *fragment shader* (three-mesh-bvh style, stackless or
+  short-stack) is not obviously faster than DDA for these short voxel-scale
+  rays — voxel DDA is brutally cache-friendly.
+- **Precision seams.** T-junctions and shared edges from greedy meshing can
+  leak rays (shadow acne along voxel face boundaries) — a class of artifact
+  the grid simply doesn't have.
+
+### Verdict
+
+Worth an experiment, but as a *hybrid*, not a replacement: keep the per-model
+voxel DDA (it's excellent at what it does — exact, build-free, edit-friendly)
+and add a **shape-level BVH** over model AABBs first (§9's actual bottleneck,
+~2 days, no meshing involved). If primary-ray cost on huge sparse scenes
+still hurts after that, prototype greedy meshing + three-mesh-bvh for
+primary visibility only, keeping DDA for shadows/bounces — measure before
+committing. Full triangle-RT (hardware RT via WebGPU ray queries) only makes
+sense bundled with the §7 WebGPU backend, and even then voxel DDA in compute
+is a strong contender (the Teardown-style engines stay voxel-native for a
+reason).

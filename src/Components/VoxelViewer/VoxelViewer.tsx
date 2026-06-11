@@ -13,6 +13,14 @@ export interface VoxelViewerProps {
   maxSteps?: number;
 }
 
+const SPEED_OPTIONS: Array<[label: string, tps: number]> = [
+  ['full', Infinity],
+  ['60 tps', 60],
+  ['30 tps', 30],
+  ['10 tps', 10],
+  ['paused', 0],
+];
+
 export default function VoxelViewer(props: VoxelViewerProps) {
   const { src, onFileChange, onRendered, maxSteps, devicePixelRatio } = props;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +31,8 @@ export default function VoxelViewer(props: VoxelViewerProps) {
   const [scene, setScene] = useState<VoxelScene | null>(null);
   const [status, setStatus] = useState('Loading…');
   const [error, setError] = useState<string | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [speed, setSpeed] = useState('full');
 
   // Tracer lifecycle (mount once)
   useEffect(() => {
@@ -36,8 +46,8 @@ export default function VoxelViewer(props: VoxelViewerProps) {
           const fps = ms > 0 ? ((tick / ms) * 1000).toFixed(2) : '0';
           setStatus(
             tick >= maxTick
-              ? `Rendering Completed (took ${Math.round(ms)}ms) — FPS: ${fps}`
-              : `Rendering (${tick}/${maxTick}) — FPS: ${fps}`
+              ? `completed in ${Math.round(ms)}ms — ${fps} tps`
+              : `rendering ${tick}/${maxTick} — ${fps} tps`
           );
         },
         onRendered: () => onRenderedRef.current?.(),
@@ -53,11 +63,22 @@ export default function VoxelViewer(props: VoxelViewerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Backtick toggles the debug panel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (e.key === '`') setDebugOpen((open) => !open);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Scene loading
   useEffect(() => {
     if (!tracerRef.current) return;
     let cancelled = false;
-    setStatus('Loading…');
+    setStatus('loading…');
     tracerRef.current
       .load(src)
       .then((loaded) => {
@@ -77,15 +98,15 @@ export default function VoxelViewer(props: VoxelViewerProps) {
   const filenameText = src instanceof File ? src.name : src;
   const voxelSize = scene && scene.models.length > 0 ? scene.models[0].size : undefined;
   const voxelSizeText = voxelSize
-    ? `Voxel Size: ${voxelSize.x}x${voxelSize.y}x${voxelSize.z} (${scene!.models.length} models)`
+    ? `${voxelSize.x}×${voxelSize.y}×${voxelSize.z} · ${scene!.models.length} model(s)`
     : '';
 
   return (
     <div className="voxel-viewer">
-      <div className="top-bar">VoxelTracer V1.0</div>
       <div className="voxel-viewer-surface-container" ref={containerRef} />
-      <div className="status-panel">
-        <div>
+      {debugOpen && (
+        <div className="debug-panel">
+          <div className="debug-panel-title">voxeltracer · debug</div>
           <select value={filenameText} onChange={(e) => onFileChange?.(e.target.value)}>
             {availableVoxelFiles.map((filename) => (
               <option key={filename} value={filename}>
@@ -93,10 +114,28 @@ export default function VoxelViewer(props: VoxelViewerProps) {
               </option>
             ))}
           </select>
+          <div>{voxelSizeText}</div>
+          <div>{error ?? status}</div>
+          <label>
+            speed{' '}
+            <select
+              value={speed}
+              onChange={(e) => {
+                const label = e.target.value;
+                setSpeed(label);
+                const option = SPEED_OPTIONS.find(([l]) => l === label);
+                if (option) tracerRef.current?.setTicksPerSecond(option[1]);
+              }}
+            >
+              {SPEED_OPTIONS.map(([label]) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <div>{voxelSizeText}</div>
-        <div>{error ?? status}</div>
-      </div>
+      )}
     </div>
   );
 }
