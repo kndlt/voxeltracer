@@ -20,6 +20,12 @@ export interface VoxelRendererOptions {
    */
   ticksPerSecond?: number;
   /**
+   * Cap for adaptive sub-stepping (trace ticks per displayed frame).
+   * Default 8 — fast convergence while leaving GPU headroom for the OS;
+   * raise it for batch/offline rendering.
+   */
+  maxTicksPerFrame?: number;
+  /**
    * GPU backend: 'auto' (default) tries WebGPU and falls back to WebGL2;
    * 'webgpu' fails hard when unavailable; 'webgl2' forces the fallback.
    */
@@ -61,10 +67,13 @@ export class VoxelRenderer {
   private lastReportedTick = -10;
   /** Trace ticks per second; Infinity = every frame, 0 = paused. */
   ticksPerSecond: number;
+  /** Cap for adaptive sub-stepping (ticks per displayed frame). */
+  maxTicksPerFrame: number;
 
   constructor(canvas: HTMLCanvasElement, options: VoxelRendererOptions = {}) {
     this.options = options;
     this.ticksPerSecond = options.ticksPerSecond ?? Infinity;
+    this.maxTicksPerFrame = options.maxTicksPerFrame ?? 8;
     this.maxTickValue = options.maxTick ?? MAX_TICK;
     this.ready = this.initBackend(canvas, options.backend ?? 'auto');
   }
@@ -172,18 +181,19 @@ export class VoxelRenderer {
         // Unregulated: sub-step. When a single trace tick is cheaper than a
         // display frame, run several ticks per frame. The rAF delta is the
         // honest GPU-saturation signal (swap-chain backpressure delays it).
-        // Targets a steady 60fps: grow gently (every 4th frame) only when
-        // clearly under one vsync interval, back off as soon as a frame
-        // runs past it — convergence uses the headroom below the budget.
+        // Grow gently (every 4th frame) while frames keep vsync pace
+        // (16.7ms ± tolerance), back off as soon as pacing slips. The
+        // maxTicksPerFrame cap (default 8) leaves GPU headroom so the rest
+        // of the machine stays responsive while converging.
         if (this.lastFrameAt > 0) {
           const delta = now - this.lastFrameAt;
-          if (delta < 16.2 && this.ticksPerFrame < 32) {
+          if (delta <= 17.5 && this.ticksPerFrame < this.maxTicksPerFrame) {
             this.framesSinceRamp++;
             if (this.framesSinceRamp >= 4) {
               this.framesSinceRamp = 0;
               this.ticksPerFrame++;
             }
-          } else if (delta > 18.5 && this.ticksPerFrame > 1) {
+          } else if (delta > 20 && this.ticksPerFrame > 1) {
             this.ticksPerFrame = Math.max(1, this.ticksPerFrame >> 1);
             this.framesSinceRamp = 0;
           }
