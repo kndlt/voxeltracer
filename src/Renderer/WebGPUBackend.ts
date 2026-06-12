@@ -209,7 +209,6 @@ export class WebGPUBackend implements TraceBackend {
     this.height = Math.max(1, Math.floor(cssHeight * pixelRatio));
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-
     this.accumTextures?.forEach((t) => t.destroy());
     const makeAccum = () =>
       this.device.createTexture({
@@ -219,6 +218,7 @@ export class WebGPUBackend implements TraceBackend {
       });
     this.accumTextures = [makeAccum(), makeAccum()];
     this.traceBindGroups = null;
+    this.presentBindGroups = null;
   }
 
   setEmissiveSampling(enabled: boolean): void {

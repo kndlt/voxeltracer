@@ -14,12 +14,13 @@ export interface VoxelViewerProps {
   maxSteps?: number;
 }
 
-const SPEED_OPTIONS: Array<[label: string, tps: number]> = [
-  ['full', Infinity],
-  ['60 tps', 60],
-  ['30 tps', 30],
-  ['10 tps', 10],
-  ['paused', 0],
+// label -> [ticksPerSecond, fullThrottle]
+const SPEED_OPTIONS: Array<[label: string, tps: number, fullThrottle: boolean]> = [
+  ['reasonable', Infinity, false], // ~50% GPU duty while converging
+  ['full', Infinity, true],
+  ['30 tps', 30, false],
+  ['10 tps', 10, false],
+  ['paused', 0, false],
 ];
 
 export default function VoxelViewer(props: VoxelViewerProps) {
@@ -33,7 +34,7 @@ export default function VoxelViewer(props: VoxelViewerProps) {
   const [status, setStatus] = useState('Loading…');
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
-  const [speed, setSpeed] = useState('full');
+  const [speed, setSpeed] = useState('reasonable');
   const [nee, setNee] = useState(true);
 
   // Tracer lifecycle (mount once)
@@ -145,7 +146,11 @@ export default function VoxelViewer(props: VoxelViewerProps) {
                 const label = e.target.value;
                 setSpeed(label);
                 const option = SPEED_OPTIONS.find(([l]) => l === label);
-                if (option) tracerRef.current?.setTicksPerSecond(option[1]);
+                const renderer = tracerRef.current?.renderer;
+                if (option && renderer) {
+                  tracerRef.current!.setTicksPerSecond(option[1]);
+                  renderer.fullThrottle = option[2];
+                }
               }}
             >
               {SPEED_OPTIONS.map(([label]) => (

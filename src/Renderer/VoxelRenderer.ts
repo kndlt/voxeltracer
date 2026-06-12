@@ -65,10 +65,18 @@ export class VoxelRenderer {
   private ticksPerFrame = 1;
   private framesSinceRamp = 0;
   private lastReportedTick = -10;
+  private frameParity = 0;
+  private interactiveUntil = 0;
   /** Trace ticks per second; Infinity = every frame, 0 = paused. */
   ticksPerSecond: number;
   /** Cap for adaptive sub-stepping (ticks per displayed frame). */
   maxTicksPerFrame: number;
+  /**
+   * When false (default, "reasonable"), converging traces every other
+   * frame, leaving ~half the GPU idle for the rest of the machine. True =
+   * use everything available.
+   */
+  fullThrottle = false;
 
   constructor(canvas: HTMLCanvasElement, options: VoxelRendererOptions = {}) {
     this.options = options;
@@ -152,6 +160,7 @@ export class VoxelRenderer {
   setCamera(camera: THREE.PerspectiveCamera): void {
     this.camera = camera;
     this.backend?.setCamera(camera);
+    this.interactiveUntil = performance.now() + 300;
     this.resetAccumulation();
   }
 
@@ -176,6 +185,22 @@ export class VoxelRenderer {
     const loop = () => {
       if (!this.running) return;
       const now = performance.now();
+
+      const interactive = now < this.interactiveUntil;
+
+      // Converging frames run at ~50% GPU duty: trace every other frame
+      // (the controller sizes a work frame to one vsync, so one work frame
+      // per two-frame cycle leaves half the GPU idle for the rest of the
+      // machine). Interactive frames always trace for responsiveness.
+      this.frameParity ^= 1;
+      if (!this.fullThrottle && !interactive && this.tick > 0 && this.frameParity === 0) {
+        this.lastFrameAt = now;
+        if (this.tick <= this.maxTickValue && this.scene) {
+          this.backend?.renderTicks(this.tick, 0); // present only
+        }
+        this.rafId = requestAnimationFrame(loop);
+        return;
+      }
 
       if (this.ticksPerSecond === Infinity) {
         // Unregulated: sub-step. When a single trace tick is cheaper than a
