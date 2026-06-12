@@ -4,6 +4,7 @@ export const availableVoxelFiles = [
   'vox/web/alien_infected1.vox',
   'vox/web/alien_engi1a.vox',
   'vox/web/chr_army1.vox',
+  'vox/generated/lamps.vox',
   'vox/generated/ministore_2x2.vox',
   'vox/generated/ministore_4x4.vox',
   'vox/generated/ministore_8x8.vox',

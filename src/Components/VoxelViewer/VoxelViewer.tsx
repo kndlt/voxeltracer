@@ -33,6 +33,7 @@ export default function VoxelViewer(props: VoxelViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [speed, setSpeed] = useState('full');
+  const [nee, setNee] = useState(true);
 
   // Tracer lifecycle (mount once)
   useEffect(() => {
@@ -116,6 +117,18 @@ export default function VoxelViewer(props: VoxelViewerProps) {
           </select>
           <div>{voxelSizeText}</div>
           <div>{error ?? status}</div>
+          <label>
+            <input
+              type="checkbox"
+              checked={nee}
+              onChange={(e) => {
+                setNee(e.target.checked);
+                const renderer = tracerRef.current?.renderer;
+                if (renderer) renderer.emissiveSampling = e.target.checked;
+              }}
+            />{' '}
+            emissive NEE
+          </label>
           <label>
             speed{' '}
             <select

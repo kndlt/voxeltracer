@@ -72,7 +72,10 @@ uniform ivec2 resolution;
 uniform usampler3D voxelAtlas;
 uniform sampler2D shapeTex; // SHAPE_TEX_WIDTH x shapeCount RGBA32F
 uniform sampler2D bvhTex; // 2 x nodeCount RGBA32F (see ShapeBvh.ts layout)
+uniform sampler2D lightTex; // 1 x lightCount RGBA32F: emissive voxel centers + material index
 uniform int shapeCount;
+uniform int lightCount;
+uniform int neeEnabled; // 1 = sample emissive voxels directly (next-event estimation)
 uniform sampler2D colorTexture;
 uniform sampler2D materialTexture;
 uniform sampler2D previousFrame;
@@ -364,6 +367,14 @@ vec2 jitterUV(vec2 baseUV) {
   return baseUV + pixelPortion * (subPixelLocalUV - 0.5);
 }
 
+// Whether the most recent bounce was specular (mirror/refraction). NEE only
+// covers diffuse transport, so emitter hits after a specular bounce must
+// still add their emission term.
+bool gBounceSpecular = false;
+// Solid-angle pdf of the most recent diffuse bounce direction (cos/pi),
+// used for MIS weighting against the light-sample pdf.
+float gBouncePdf = 0.0;
+
 /**
  * Returns a new ray if we were able to bounce or refract.
  * Otherwise the exact same ray is returned.
@@ -371,11 +382,14 @@ vec2 jitterUV(vec2 baseUV) {
 Ray bounceRay(Ray ray, Hit hit, Material material) {
   float r = rand();
   float weight = material.weight;
+  gBounceSpecular = false;
 
   if (material.type == MATL_METAL && r < weight) {
+    gBounceSpecular = true;
     ray.dir = normalize(reflect(ray.dir, hit.normal)) + uniformlyRandomVector() * material.roughness;
     ray.origin = hit.pos + ray.dir * EPSILON;
   } else if (material.type == MATL_GLASS && r < weight) {
+    gBounceSpecular = true;
     float ior = 1.0 + material.refraction;
     float fresnelReflectance = fresnel(1.0 / ior, ray.dir, hit.normal);
 
@@ -397,9 +411,61 @@ Ray bounceRay(Ray ray, Hit hit, Material material) {
     // Default diffuse bounce
     ray.dir = cosineWeightedDirection(hit.normal);
     ray.origin = hit.pos + ray.dir * EPSILON;
+    gBouncePdf = max(dot(ray.dir, hit.normal), 0.0) / 3.141592653589793;
   }
 
   return ray;
+}
+
+/**
+ * Next-event estimation toward emissive voxels: sample one light from the
+ * list, cast a shadow ray, and return its direct contribution. Matches the
+ * brightness of the classic "bounce happens to hit the emitter" estimator
+ * (cosine-weighted bounce pdf = cos/pi over a ~unit-area voxel) so toggling
+ * NEE changes noise, not look.
+ */
+vec3 sampleEmissive(Hit hit, float diffuseFactor) {
+  if (lightCount == 0 || diffuseFactor <= 0.0) {
+    return vec3(0.0);
+  }
+  // Per-pixel decorrelated, tick-stratified light pick. The main RNG is
+  // seeded per frame (uniform across pixels, for the light-swing look);
+  // reusing it here would make every pixel sample the same light and
+  // converge to iso-distance banding.
+  uint h = pcg(uint(gl_FragCoord.x) * 1973u ^ uint(gl_FragCoord.y) * 9277u);
+  int li = int((h + uint(tick) * 2654435761u) % uint(lightCount));
+  vec4 light = texelFetch(lightTex, ivec2(0, li), 0);
+  vec3 toLight = light.xyz - hit.pos;
+  float dist = length(toLight);
+  if (dist < 0.87) {
+    // inside the emitter voxel's half-diagonal; contact light is handled by
+    // the classic emission term
+    return vec3(0.0);
+  }
+  vec3 dir = toLight / dist;
+  float cosSurf = dot(hit.normal, dir);
+  if (cosSurf <= 0.0) {
+    return vec3(0.0);
+  }
+
+  Ray shadowRay = Ray(hit.pos + dir * EPSILON, dir);
+  Hit blocker = intersectShapes(shadowRay, 0);
+  // The emitter voxel itself is geometry: a hit near the light distance
+  // (within the voxel's ~0.87 half-diagonal) is the emitter, not a blocker.
+  if (blocker.didHit && blocker.t < dist - 0.9) {
+    return vec3(0.0);
+  }
+
+  Material lm = getMaterial(int(light.w));
+  float emitStrength = lm.weight * 30.0 * lm.flux;
+  // unit-area voxel emitter: estimator cos/(pi d^2) * lightCount, balanced
+  // against the cosine-bounce strategy via MIS so big emitters stay with
+  // the bounce estimator and small ones with NEE.
+  float pNee = (dist * dist) / float(lightCount);
+  float pBrdf = cosSurf / 3.141592653589793;
+  float misWeight = pNee / (pNee + pBrdf);
+  float geom = cosSurf / (3.141592653589793 * dist * dist);
+  return lm.color.rgb * emitStrength * geom * diffuseFactor * float(lightCount) * misWeight;
 }
 
 // ------------------------------------------------------------------- main
@@ -474,9 +540,27 @@ void main() {
       diffuseAmount = max(0.0, dot(jitteredLightDir, hit.normal));
     }
 
+    // With NEE on, indirect diffuse-path emitter hits are MIS-weighted
+    // against the light-sampling strategy (primary hits and specular paths
+    // keep full emission — NEE never covers those).
+    if (neeEnabled == 1 && i > 0 && !gBounceSpecular && lightCount > 0 && emission > 0.0) {
+      float pNee = (hit.t * hit.t) / float(lightCount);
+      emission *= gBouncePdf / (gBouncePdf + pNee);
+    }
+
     accumulatedColor += colorMask * diffuseAmount * shadowMultiplier;
     accumulatedColor += colorMask * specularHighlight * calibratedLightColor * shadowMultiplier;
     accumulatedColor += colorMask * emission;
+
+    // Next-event estimation toward emissive voxels
+    if (neeEnabled == 1 && material.type != MATL_EMISSIVE) {
+      float neeFactor = 1.0;
+      if (material.type == MATL_GLASS || material.type == MATL_METAL) {
+        // diffuse transport probability of these materials' bounce
+        neeFactor = 1.0 - materialWeight;
+      }
+      accumulatedColor += colorMask * sampleEmissive(hit, neeFactor);
+    }
 
     // The first frame is rendered without indirect lighting so something
     // shows up immediately.

@@ -308,6 +308,17 @@ itself.
 *Added 2026-06-11. Grounded in the current kernel
 (`src/Renderer/shaders/pathTracer.frag`).*
 
+> **Status update (same day):** items 1–2 are implemented. Emissive voxel
+> centers (surface cells only) are collected into a light-list texture at
+> scene build; every diffuse hit samples one light with a shadow ray, and
+> both strategies are combined with an MIS balance heuristic (`pNee = d²/N`
+> vs `pBrdf = cos/π`), so giant emitters keep the classic bounce look while
+> small lamps converge via NEE. Light selection is per-pixel decorrelated
+> and tick-stratified (the frame-coherent main RNG would converge to
+> iso-distance banding). Toggle: `renderer.emissiveSampling` / the debug
+> panel checkbox; default on. See `docs/images/nee_{off,on}_250ticks.png`
+> for the lamps-scene comparison at equal sample counts.
+
 ### Where the sampler stands today
 
 - **Diffuse bounces are already importance sampled** —

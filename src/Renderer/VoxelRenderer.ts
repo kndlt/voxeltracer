@@ -104,7 +104,10 @@ export class VoxelRenderer {
         voxelAtlas: { value: null },
         shapeTex: { value: null },
         bvhTex: { value: null },
+        lightTex: { value: null },
         shapeCount: { value: 0 },
+        lightCount: { value: 0 },
+        neeEnabled: { value: 1 },
         colorTexture: { value: null },
         materialTexture: { value: null },
         previousFrame: { value: null },
@@ -144,6 +147,16 @@ export class VoxelRenderer {
     this.traceMaterial.uniforms.maxTick.value = value;
   }
 
+  /** Next-event estimation toward emissive voxels (default on). */
+  get emissiveSampling(): boolean {
+    return this.traceMaterial.uniforms.neeEnabled.value === 1;
+  }
+
+  set emissiveSampling(enabled: boolean) {
+    this.traceMaterial.uniforms.neeEnabled.value = enabled ? 1 : 0;
+    this.resetAccumulation();
+  }
+
   setScene(scene: VoxelScene): void {
     this.sceneTextures?.dispose();
     const textures = SceneTextures.fromScene(scene, this.maxAtlasSize);
@@ -152,7 +165,9 @@ export class VoxelRenderer {
     u.voxelAtlas.value = textures.atlas;
     u.shapeTex.value = textures.shapeTex;
     u.bvhTex.value = textures.bvhTex;
+    u.lightTex.value = textures.lightTex;
     u.shapeCount.value = textures.shapeCount;
+    u.lightCount.value = textures.lightCount;
     u.colorTexture.value = textures.colorTex;
     u.materialTexture.value = textures.materialTex;
     (u.lightColor.value as THREE.Color).copy(scene.lightColor);

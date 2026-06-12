@@ -86,6 +86,62 @@ for (let i = 0; i < 255; i++) {
 }
 
 // ---------------------------------------------------------------------------
+// lamps.vox — a dim room lit only by six small 2^3 emissive lamps.
+// The worst case for blind path tracing (tiny emitters found by accident)
+// and the showcase for next-event estimation.
+{
+  const sx = 64;
+  const sy = 64;
+  const sz = 24;
+  const voxels = [];
+  // floor + two walls, dark gray (palette 1)
+  for (let y = 0; y < sy; y++) {
+    for (let x = 0; x < sx; x++) voxels.push([x, y, 0, 1]);
+  }
+  for (let z = 1; z < sz; z++) {
+    for (let x = 0; x < sx; x++) voxels.push([x, sy - 1, z, 1]);
+    for (let y = 0; y < sy; y++) voxels.push([sx - 1, y, z, 1]);
+  }
+  // a few diffuse pillars (palette 2)
+  for (const [px, py] of [[16, 16], [40, 24], [24, 44]]) {
+    for (let z = 1; z < 14; z++) {
+      for (let dx = 0; dx < 3; dx++) {
+        for (let dy = 0; dy < 3; dy++) voxels.push([px + dx, py + dy, z, 2]);
+      }
+    }
+  }
+  // six 2^3 lamps (palettes 7/8/9 cycled), floating
+  const lampSpots = [[8, 8, 8], [52, 10, 10], [30, 30, 14], [10, 50, 6], [48, 48, 12], [30, 8, 5]];
+  lampSpots.forEach(([lx, ly, lz], i) => {
+    const c = 7 + (i % 3);
+    for (let dz = 0; dz < 2; dz++) {
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) voxels.push([lx + dx, ly + dy, lz + dz, c]);
+      }
+    }
+  });
+  const lampPalette = palette.slice();
+  lampPalette[0] = [70, 70, 80, 255]; // 1: dark floor/walls
+  lampPalette[1] = [110, 100, 95, 255]; // 2: pillars
+  lampPalette[6] = [255, 180, 90, 255]; // 7: warm lamp
+  lampPalette[7] = [120, 200, 255, 255]; // 8: cool lamp
+  lampPalette[8] = [255, 110, 200, 255]; // 9: pink lamp
+  write(
+    'lamps.vox',
+    buildVox({
+      models: [{ size: [sx, sy, sz], voxels }],
+      translations: [[0, 0, sz / 2]],
+      palette: lampPalette,
+      materials: [
+        [7, { _type: '_emit', _emit: '1', _flux: '0.8' }],
+        [8, { _type: '_emit', _emit: '1', _flux: '0.8' }],
+        [9, { _type: '_emit', _emit: '1', _flux: '0.8' }],
+      ],
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
 // many_models_100.vox — 100 small 16^3 models scattered on a spiral.
 // Exceeds both the legacy shader's shape loop (1) and the legacy
 // MAX_SHAPES uniform padding (64).

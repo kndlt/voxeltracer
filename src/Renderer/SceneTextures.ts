@@ -98,6 +98,90 @@ export function buildShapeTexData(hashes: ShapeHash[]): Float32Array {
   return data;
 }
 
+export const MAX_LIGHTS = 4096;
+
+/**
+ * Collects world-space centers of emissive voxels across all shape
+ * instances — the light list for next-event estimation. One RGBA32F texel
+ * per light: [x, y, z, materialIndex]. Evenly strided down to `cap` when a
+ * scene has more emissive voxels than that.
+ */
+export function buildLightListData(
+  scene: VoxelScene,
+  hashes: ShapeHash[],
+  cap = MAX_LIGHTS
+): { data: Float32Array; count: number } {
+  const emissive = new Set<number>();
+  const mat = scene.materials.materialTexture;
+  for (let p = 1; p < 256; p++) {
+    if ((mat.get(p % 16, Math.floor(p / 16), 0) as number) === 3) emissive.add(p);
+  }
+
+  const lights: number[] = [];
+  if (emissive.size > 0) {
+    // per-model emissive cells, computed once and instanced per shape
+    const modelCells = new Map<number, number[]>();
+    const cellsFor = (modelIndex: number): number[] => {
+      let cells = modelCells.get(modelIndex);
+      if (!cells) {
+        cells = [];
+        const model = scene.models[modelIndex];
+        const sx = model.size.x;
+        const sy = model.size.y;
+        const sz = model.size.z;
+        const at = (x: number, y: number, z: number) =>
+          x < 0 || y < 0 || z < 0 || x >= sx || y >= sy || z >= sz
+            ? 0
+            : model.data[(z * sy + y) * sx + x];
+        for (let z = 0; z < sz; z++) {
+          for (let y = 0; y < sy; y++) {
+            for (let x = 0; x < sx; x++) {
+              const m = at(x, y, z);
+              if (!emissive.has(m)) continue;
+              // surface voxels only — interior emitters are always occluded
+              const exposed =
+                !at(x - 1, y, z) || !at(x + 1, y, z) ||
+                !at(x, y - 1, z) || !at(x, y + 1, z) ||
+                !at(x, y, z - 1) || !at(x, y, z + 1);
+              if (exposed) cells.push(x, y, z, m);
+            }
+          }
+        }
+        modelCells.set(modelIndex, cells);
+      }
+      return cells;
+    };
+
+    for (const hash of hashes) {
+      const cells = cellsFor(hash.modelIndex);
+      const r = hash.rotation; // column-major
+      const t = hash.translation;
+      for (let c = 0; c < cells.length; c += 4) {
+        const lx = hash.pos[0] + cells[c] + 0.5;
+        const ly = hash.pos[1] + cells[c + 1] + 0.5;
+        const lz = hash.pos[2] + cells[c + 2] + 0.5;
+        lights.push(
+          r[0] * lx + r[3] * ly + r[6] * lz + t[0],
+          r[1] * lx + r[4] * ly + r[7] * lz + t[1],
+          r[2] * lx + r[5] * ly + r[8] * lz + t[2],
+          cells[c + 3]
+        );
+      }
+    }
+  }
+
+  let count = lights.length / 4;
+  if (count > cap) {
+    const strided: number[] = [];
+    for (let i = 0; i < cap; i++) {
+      const src = Math.floor((i * count) / cap) * 4;
+      strided.push(lights[src], lights[src + 1], lights[src + 2], lights[src + 3]);
+    }
+    return { data: Float32Array.from(strided), count: cap };
+  }
+  return { data: Float32Array.from(lights.length ? lights : [0, 0, 0, 0]), count };
+}
+
 /**
  * Re-orders a 16x16 palette/material ndarray (indexed [i=index%16, j=index/16])
  * into GPU row-major layout so the shader can texelFetch at
@@ -121,7 +205,9 @@ export class SceneTextures {
   readonly bvhTex: THREE.DataTexture;
   readonly colorTex: THREE.DataTexture;
   readonly materialTex: THREE.DataTexture;
+  readonly lightTex: THREE.DataTexture;
   readonly shapeCount: number;
+  readonly lightCount: number;
 
   private constructor(
     atlas: THREE.Data3DTexture,
@@ -129,14 +215,18 @@ export class SceneTextures {
     bvhTex: THREE.DataTexture,
     colorTex: THREE.DataTexture,
     materialTex: THREE.DataTexture,
-    shapeCount: number
+    lightTex: THREE.DataTexture,
+    shapeCount: number,
+    lightCount: number
   ) {
     this.atlas = atlas;
     this.shapeTex = shapeTex;
     this.bvhTex = bvhTex;
     this.colorTex = colorTex;
     this.materialTex = materialTex;
+    this.lightTex = lightTex;
     this.shapeCount = shapeCount;
+    this.lightCount = lightCount;
   }
 
   static fromScene(scene: VoxelScene, maxAtlasSize: number): SceneTextures {
@@ -205,7 +295,28 @@ export class SceneTextures {
     materialTex.magFilter = THREE.NearestFilter;
     materialTex.needsUpdate = true;
 
-    return new SceneTextures(atlas, shapeTex, bvhTex, colorTex, materialTex, hashes.length);
+    const lightList = buildLightListData(scene, hashes);
+    const lightTex = new THREE.DataTexture(
+      lightList.data,
+      1,
+      Math.max(lightList.count, 1),
+      THREE.RGBAFormat,
+      THREE.FloatType
+    );
+    lightTex.minFilter = THREE.NearestFilter;
+    lightTex.magFilter = THREE.NearestFilter;
+    lightTex.needsUpdate = true;
+
+    return new SceneTextures(
+      atlas,
+      shapeTex,
+      bvhTex,
+      colorTex,
+      materialTex,
+      lightTex,
+      hashes.length,
+      lightList.count
+    );
   }
 
   dispose(): void {
@@ -214,5 +325,6 @@ export class SceneTextures {
     this.bvhTex.dispose();
     this.colorTex.dispose();
     this.materialTex.dispose();
+    this.lightTex.dispose();
   }
 }
